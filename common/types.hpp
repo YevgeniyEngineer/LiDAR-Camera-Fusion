@@ -51,4 +51,14 @@ struct PointSpherical
     float elevation_rad;
     float intensity;
 };
+
+struct ImagePixel
+{
+    float x;
+    float y;
+    float red;
+    float green;
+    float blue;
+};
+
 } // namespace common

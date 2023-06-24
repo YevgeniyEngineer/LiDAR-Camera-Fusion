@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# Data folder
+a_kitti_dataset
+
+# Build
+build

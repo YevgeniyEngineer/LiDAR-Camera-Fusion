@@ -9,8 +9,22 @@ LAUCH_DIR="${BUILD_DIR}"
 unset GTK_PATH
 
 cd "${LAUCH_DIR}"
-./kitti_data_reader_nodes/camera_frame_reader_publisher_node &
-./kitti_data_reader_nodes/point_cloud_reader_publisher_node &
+
+DATA_FOLDER="/home/yevgeniy/Documents/GitHub/LiDAR-Camera-Fusion/a_kitti_dataset/2011_09_26_drive_0013_sync"
+
+./kitti_data_reader_nodes/camera_frame_reader_publisher_node \
+    "${DATA_FOLDER}" \
+    "image_02" \
+    "camera_1" &
+
+./kitti_data_reader_nodes/camera_frame_reader_publisher_node \
+    "${DATA_FOLDER}" \
+    "image_03" \
+    "camera_2" &
+
+./kitti_data_reader_nodes/point_cloud_reader_publisher_node \
+    "${DATA_FOLDER}" \
+    "pointcloud" &
 
 cd "${SCRIPT_DIR}"
 rviz2 -d "visualisation/rviz2_config.rviz" &

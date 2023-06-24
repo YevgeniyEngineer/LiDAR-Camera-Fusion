@@ -257,17 +257,23 @@ class PointCloudReaderPublisherNode : public rclcpp::Node
     rclcpp::Publisher<PointCloud2>::SharedPtr cloud_publisher_;
 };
 
-int main(int argc, const char **argv)
+int main(int argc, const char **const argv)
 {
+    if (argc < 3)
+    {
+        std::cout << "Usage: " << argv[0] << " <data_path> <topic>" << std::endl;
+        return 1;
+    }
+
+    const char *const data_path = argv[1];
+    const char *const topic = argv[2];
+
     rclcpp::init(argc, argv);
     rclcpp::install_signal_handlers();
 
-    const auto data_path = "/home/yevgeniy/Documents/GitHub/LiDAR-Camera-Fusion/a_kitti_dataset/"
-                           "2011_09_26_drive_0013_sync";
-
     try
     {
-        rclcpp::spin(std::make_shared<PointCloudReaderPublisherNode>(data_path));
+        rclcpp::spin(std::make_shared<PointCloudReaderPublisherNode>(data_path, topic));
     }
     catch (const std::exception &ex)
     {

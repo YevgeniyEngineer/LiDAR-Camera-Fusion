@@ -2,4 +2,4 @@
 
 #include <chrono>
 
-constexpr inline auto SYNCHRONIZATION_TIME = std::chrono::milliseconds(1500);
+constexpr inline static auto SYNCHRONIZATION_TIME = std::chrono::milliseconds(1500);

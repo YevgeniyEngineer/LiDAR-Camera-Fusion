@@ -38,7 +38,8 @@ class CameraFrameReaderPublisherNode : public rclcpp::Node
   public:
     using Image = sensor_msgs::msg::Image;
 
-    CameraFrameReaderPublisherNode(const std::filesystem::path &data_path, std::string topic = "camera_frame")
+    CameraFrameReaderPublisherNode(const std::filesystem::path &data_path, const std::filesystem::path &camera_path,
+                                   std::string topic = "camera_frame")
         : Node("camera_frame_reader_publisher_node"), image_message_publisher_(nullptr)
     {
         auto now = std::chrono::system_clock::now();
@@ -49,13 +50,13 @@ class CameraFrameReaderPublisherNode : public rclcpp::Node
             throw std::runtime_error("Specified data path does not exist.");
         }
 
-        std::filesystem::path timestamps_file = (data_path / "image_03") / "timestamps.txt";
+        std::filesystem::path timestamps_file = (data_path / camera_path) / "timestamps.txt";
         if (!std::filesystem::exists(timestamps_file))
         {
             throw std::runtime_error("Timestamp data file timestamps.txt was not found.");
         }
 
-        std::filesystem::path image_data_path = (data_path / "image_03") / "data";
+        std::filesystem::path image_data_path = (data_path / camera_path) / "data";
         if (!std::filesystem::exists(image_data_path))
         {
             throw std::runtime_error("Data path containing *.png files was not found..");
@@ -167,17 +168,24 @@ class CameraFrameReaderPublisherNode : public rclcpp::Node
     std::vector<Image> image_message_cache_;
 };
 
-int main(int argc, const char **argv)
+int main(int argc, const char **const argv)
 {
+    if (argc < 4)
+    {
+        std::cout << "Usage: " << argv[0] << " <data_path> <file_path> <topic>" << std::endl;
+        return 1;
+    }
+
+    const char *const data_path = argv[1];
+    const char *const file_path = argv[2];
+    const char *const topic = argv[3];
+
     rclcpp::init(argc, argv);
     rclcpp::install_signal_handlers();
 
-    const auto data_path = "/home/yevgeniy/Documents/GitHub/LiDAR-Camera-Fusion/a_kitti_dataset/"
-                           "2011_09_26_drive_0013_sync";
-
     try
     {
-        rclcpp::spin(std::make_shared<CameraFrameReaderPublisherNode>(data_path));
+        rclcpp::spin(std::make_shared<CameraFrameReaderPublisherNode>(data_path, file_path, topic));
     }
     catch (const std::exception &ex)
     {

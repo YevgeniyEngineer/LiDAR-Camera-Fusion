@@ -1,9 +1,11 @@
 // Local
 #include "types.hpp"
 
+#include "filename_reader.hpp"
+#include "timestamp_reader.hpp"
+
 // STL
-#include <chrono> // std::chrono
-#include <chrono>
+#include <chrono>     // std::chrono
 #include <cstdint>    // std::uint32_t
 #include <cstring>    // std::memcpy
 #include <filesystem> // std::filesystem
@@ -16,7 +18,6 @@
 #include <tuple>     // std::tuple
 #include <utility>   // std::move
 #include <vector>    // std::vector
-#include <vector>
 
 // ROS2
 #include <rclcpp/executors.hpp>             // rclcpp::spin
@@ -42,15 +43,15 @@ enum PointFieldTypes
     FLOAT64 = 8
 };
 
-class DataReaderNode : public rclcpp::Node
+class PointCloudReaderPublisherNode : public rclcpp::Node
 {
   public:
     static constexpr std::size_t MAX_POINTS = 200'000U;
 
     using PointCloud2 = sensor_msgs::msg::PointCloud2;
 
-    DataReaderNode(const std::filesystem::path &data_path, std::string topic = "pointcloud")
-        : rclcpp::Node::Node("data_reader_node"), cloud_publisher_(nullptr)
+    PointCloudReaderPublisherNode(const std::filesystem::path &data_path, std::string topic = "pointcloud")
+        : rclcpp::Node::Node("point_cloud_reader_publisher_node"), cloud_publisher_(nullptr)
     {
         // Check if directories exist
         if (!std::filesystem::exists(data_path))
@@ -58,13 +59,13 @@ class DataReaderNode : public rclcpp::Node
             throw std::runtime_error("Specified data path does not exist.");
         }
 
-        std::filesystem::path timestamps_file = data_path / "timestamps_start.txt";
+        std::filesystem::path timestamps_file = (data_path / "velodyne_points") / "timestamps_start.txt";
         if (!std::filesystem::exists(timestamps_file))
         {
             throw std::runtime_error("Timestamp data file timestamps_start.txt was not found.");
         }
 
-        std::filesystem::path binary_data_path = data_path / "data";
+        std::filesystem::path binary_data_path = (data_path / "velodyne_points") / "data";
         if (!std::filesystem::exists(binary_data_path))
         {
             throw std::runtime_error("Data path containing *.bin files was not found..");
@@ -74,19 +75,8 @@ class DataReaderNode : public rclcpp::Node
         timestamp_cache_ = readTimestamps(timestamps_file);
         std::cout << "Read " << timestamp_cache_.size() << " timestamps\n";
 
-        // Read files in ascending order
-        std::vector<std::filesystem::path> data_files;
-        data_files.reserve(timestamp_cache_.size());
-        for (const auto &file_path : std::filesystem::directory_iterator(binary_data_path))
-        {
-            if (std::filesystem::is_regular_file(file_path) && file_path.path().extension() == ".bin")
-            {
-                data_files.push_back(file_path.path());
-            }
-        }
-
-        // Ensure data files are correctly ordered - sort lexicographically
-        std::sort(data_files.begin(), data_files.end());
+        // Read file names in ascending order
+        const auto data_files = readFilenames(binary_data_path, ".bin");
         std::cout << "Read " << data_files.size() << " data files\n";
 
         // Check the number of timestamps matches the number of data files
@@ -118,14 +108,14 @@ class DataReaderNode : public rclcpp::Node
             point_cloud_message.point_step = sizeof(common::PointCartesian);
             point_cloud_message.row_step = sizeof(common::PointCartesian) * point_cloud_data.size();
             point_cloud_message.is_dense = true;
+            point_cloud_message.header.frame_id = "pointcloud";
 
+            // Set timestamp
             point_cloud_message.header.stamp.sec =
                 static_cast<std::int32_t>(static_cast<double>(timestamp_cache_[i]) * 1e-9);
             point_cloud_message.header.stamp.nanosec = static_cast<std::uint32_t>(
                 timestamp_cache_[i] -
                 static_cast<std::int64_t>(static_cast<double>(point_cloud_message.header.stamp.sec) * 1e9));
-
-            point_cloud_message.header.frame_id = "pointcloud";
 
             std::vector<std::tuple<std::string, std::uint32_t, std::uint8_t, std::uint32_t>> fields = {
                 {"x", offsetof(common::PointCartesian, x_m), PointFieldTypes::FLOAT32, 1},
@@ -176,15 +166,13 @@ class DataReaderNode : public rclcpp::Node
         // Create publisher for PointCloud2 message type
         cloud_publisher_ = this->create_publisher<PointCloud2>(topic, qos);
 
-        // Create a timer with a dummy time point
+        // Create a timer callback based on aggregated timestamps
         std::cout << "Aggregated " << point_cloud_cache_.size() << " point clouds.\n";
         std::cout << "Starting publication.\n";
         updateTimerAndPublish(std::chrono::nanoseconds(timestamp_cache_[1] - timestamp_cache_[0]));
     }
 
-    ~DataReaderNode()
-    {
-    }
+    ~PointCloudReaderPublisherNode() = default;
 
   private:
     void updateTimerAndPublish(std::chrono::nanoseconds interval)
@@ -258,37 +246,6 @@ class DataReaderNode : public rclcpp::Node
         return point_cloud;
     }
 
-    std::vector<std::int64_t> readTimestamps(const std::string &filename)
-    {
-        std::vector<std::int64_t> timestamps;
-        std::ifstream file(filename);
-
-        if (!file.is_open())
-        {
-            throw std::runtime_error("Could not open file");
-        }
-
-        std::string line;
-        while (std::getline(file, line))
-        {
-            std::tm tm = {};
-            std::stringstream ss(line);
-            ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S"); // strptime does not exist in C++ so we have to do this
-            tm.tm_isdst = -1;                              // DST information unknown
-            std::time_t time_t = std::mktime(&tm);
-            if (time_t != -1)
-            {
-                auto nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::system_clock::from_time_t(time_t).time_since_epoch());
-                std::string nanoseconds = line.substr(20);
-                nanosec += std::chrono::nanoseconds(std::stoll(nanoseconds));
-                timestamps.push_back(nanosec.count());
-            }
-        }
-
-        return timestamps;
-    }
-
     std::vector<std::int64_t> timestamp_cache_;
     std::vector<PointCloud2> point_cloud_cache_;
     std::uint32_t current_index_;
@@ -302,11 +259,11 @@ int main(int argc, const char **argv)
     rclcpp::install_signal_handlers();
 
     const auto data_path = "/home/yevgeniy/Documents/GitHub/LiDAR-Camera-Fusion/a_kitti_dataset/"
-                           "2011_09_26_drive_0013_sync/velodyne_points";
+                           "2011_09_26_drive_0013_sync";
 
     try
     {
-        rclcpp::spin(std::make_shared<DataReaderNode>(data_path));
+        rclcpp::spin(std::make_shared<PointCloudReaderPublisherNode>(data_path));
     }
     catch (const std::exception &ex)
     {

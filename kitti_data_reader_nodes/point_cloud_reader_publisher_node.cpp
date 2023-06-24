@@ -1,8 +1,8 @@
 // Local
-#include "types.hpp"
-
 #include "filename_reader.hpp"
+#include "synchronization_time.hpp"
 #include "timestamp_reader.hpp"
+#include "types.hpp"
 
 // STL
 #include <chrono>     // std::chrono
@@ -15,9 +15,10 @@
 #include <memory>    // std::shared_ptr
 #include <stdexcept> // std::runtime_error
 #include <string>    // std::string
-#include <tuple>     // std::tuple
-#include <utility>   // std::move
-#include <vector>    // std::vector
+#include <thread>
+#include <tuple>   // std::tuple
+#include <utility> // std::move
+#include <vector>  // std::vector
 
 // ROS2
 #include <rclcpp/executors.hpp>             // rclcpp::spin
@@ -53,6 +54,8 @@ class PointCloudReaderPublisherNode : public rclcpp::Node
     PointCloudReaderPublisherNode(const std::filesystem::path &data_path, std::string topic = "pointcloud")
         : rclcpp::Node::Node("point_cloud_reader_publisher_node"), cloud_publisher_(nullptr)
     {
+        auto now = std::chrono::system_clock::now();
+
         // Check if directories exist
         if (!std::filesystem::exists(data_path))
         {
@@ -73,11 +76,11 @@ class PointCloudReaderPublisherNode : public rclcpp::Node
 
         // Accumulate timestamps
         timestamp_cache_ = readTimestamps(timestamps_file);
-        std::cout << "Read " << timestamp_cache_.size() << " timestamps\n";
+        // std::cout << "Read " << timestamp_cache_.size() << " timestamps\n";
 
         // Read file names in ascending order
         const auto data_files = readFilenames(binary_data_path, ".bin");
-        std::cout << "Read " << data_files.size() << " data files\n";
+        // std::cout << "Read " << data_files.size() << " data files\n";
 
         // Check the number of timestamps matches the number of data files
         if (data_files.size() != timestamp_cache_.size())
@@ -98,7 +101,7 @@ class PointCloudReaderPublisherNode : public rclcpp::Node
                 continue;
             }
 
-            std::cout << "Loaded data from bin of size " << point_cloud_data.size() << std::endl;
+            // std::cout << "Loaded data from bin of size " << point_cloud_data.size() << std::endl;
 
             // Convert PointCartesian to PointCloudCache and add to the container
             PointCloud2 point_cloud_message;
@@ -166,9 +169,10 @@ class PointCloudReaderPublisherNode : public rclcpp::Node
         // Create publisher for PointCloud2 message type
         cloud_publisher_ = this->create_publisher<PointCloud2>(topic, qos);
 
+        // Sleep for synchronization
+        std::this_thread::sleep_until(now + SYNCHRONIZATION_TIME);
+
         // Create a timer callback based on aggregated timestamps
-        std::cout << "Aggregated " << point_cloud_cache_.size() << " point clouds.\n";
-        std::cout << "Starting publication.\n";
         updateTimerAndPublish(std::chrono::nanoseconds(timestamp_cache_[1] - timestamp_cache_[0]));
     }
 

@@ -1,5 +1,6 @@
 // Local
 #include "filename_reader.hpp"
+#include "synchronization_time.hpp"
 #include "timestamp_reader.hpp"
 
 // STL
@@ -13,9 +14,10 @@
 #include <memory>    // std::shared_ptr
 #include <stdexcept> // std::runtime_error
 #include <string>    // std::string
-#include <tuple>     // std::tuple
-#include <utility>   // std::move
-#include <vector>    // std::vector
+#include <thread>
+#include <tuple>   // std::tuple
+#include <utility> // std::move
+#include <vector>  // std::vector
 
 // ROS2
 #include <rclcpp/executors.hpp> // rclcpp::spin
@@ -39,6 +41,8 @@ class CameraFrameReaderPublisherNode : public rclcpp::Node
     CameraFrameReaderPublisherNode(const std::filesystem::path &data_path, std::string topic = "camera_frame")
         : Node("camera_frame_reader_publisher_node"), image_message_publisher_(nullptr)
     {
+        auto now = std::chrono::system_clock::now();
+
         // Check if directories exist
         if (!std::filesystem::exists(data_path))
         {
@@ -59,11 +63,11 @@ class CameraFrameReaderPublisherNode : public rclcpp::Node
 
         // Accumulate timestamps
         timestamp_cache_ = readTimestamps(timestamps_file);
-        std::cout << "Read " << timestamp_cache_.size() << " timestamps\n";
+        // std::cout << "Read " << timestamp_cache_.size() << " timestamps\n";
 
         // Read file names in ascending order
         const auto data_files = readFilenames(image_data_path, ".png");
-        std::cout << "Read " << data_files.size() << " data files\n";
+        // std::cout << "Read " << data_files.size() << " data files\n";
 
         // Load images into memory
         image_message_cache_.reserve(timestamp_cache_.size());
@@ -118,6 +122,9 @@ class CameraFrameReaderPublisherNode : public rclcpp::Node
 
         // Create publisher for Image message type
         image_message_publisher_ = this->create_publisher<Image>(topic, qos);
+
+        // Sleep for synchronization
+        std::this_thread::sleep_until(now + SYNCHRONIZATION_TIME);
 
         // Create a timer callback based on aggregated timestamps
         updateTimerAndPublish(std::chrono::nanoseconds(timestamp_cache_[1] - timestamp_cache_[0]));

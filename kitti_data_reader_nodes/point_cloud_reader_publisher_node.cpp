@@ -54,7 +54,7 @@ class PointCloudReaderPublisherNode : public rclcpp::Node
     PointCloudReaderPublisherNode(const std::filesystem::path &data_path, std::string topic = "pointcloud")
         : rclcpp::Node::Node("point_cloud_reader_publisher_node"), cloud_publisher_(nullptr)
     {
-        auto now = std::chrono::system_clock::now();
+        const auto now = std::chrono::system_clock::now();
 
         // Check if directories exist
         if (!std::filesystem::exists(data_path))
@@ -62,13 +62,13 @@ class PointCloudReaderPublisherNode : public rclcpp::Node
             throw std::runtime_error("Specified data path does not exist.");
         }
 
-        std::filesystem::path timestamps_file = (data_path / "velodyne_points") / "timestamps_start.txt";
+        const std::filesystem::path timestamps_file = (data_path / "velodyne_points") / "timestamps_start.txt";
         if (!std::filesystem::exists(timestamps_file))
         {
             throw std::runtime_error("Timestamp data file timestamps_start.txt was not found.");
         }
 
-        std::filesystem::path binary_data_path = (data_path / "velodyne_points") / "data";
+        const std::filesystem::path binary_data_path = (data_path / "velodyne_points") / "data";
         if (!std::filesystem::exists(binary_data_path))
         {
             throw std::runtime_error("Data path containing *.bin files was not found..");
@@ -179,7 +179,7 @@ class PointCloudReaderPublisherNode : public rclcpp::Node
     ~PointCloudReaderPublisherNode() = default;
 
   private:
-    void updateTimerAndPublish(std::chrono::nanoseconds interval)
+    void updateTimerAndPublish(const std::chrono::nanoseconds interval)
     {
         // Create a new timer
         timer_ = this->create_wall_timer(interval, [this]() {

@@ -82,5 +82,8 @@
         "valarray": "cpp",
         "cassert": "cpp"
     },
-    "cmake.configureOnOpen": true
+    "cmake.configureOnOpen": true,
+    "clangd.arguments": [
+        "-header-insertion=never"
+    ]
 }

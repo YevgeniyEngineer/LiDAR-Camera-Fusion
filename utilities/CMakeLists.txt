@@ -19,6 +19,13 @@ target_include_directories(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+    data_types
+)
+
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
+
 if(BUILD_TESTS)
     # Find GTest
     find_package(GTest REQUIRED)

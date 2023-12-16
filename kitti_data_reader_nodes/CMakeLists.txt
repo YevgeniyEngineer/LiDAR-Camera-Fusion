@@ -47,3 +47,21 @@ ament_target_dependencies(camera_frame_reader_publisher_node
     rclcpp
     sensor_msgs
 )
+
+# To Read Sensor Data
+add_executable(sensor_data_publisher_node
+    ./sensor_data_publisher_node.cpp
+)
+target_include_directories(sensor_data_publisher_node
+    PRIVATE
+    ${OpenCV_INCLUDE_DIRS}
+)
+target_link_libraries(sensor_data_publisher_node
+    ${rclcpp_LIBRARIES}
+    ${OpenCV_LIBS}
+    utilities
+)
+ament_target_dependencies(sensor_data_publisher_node
+    rclcpp
+    sensor_msgs
+)

@@ -14,22 +14,22 @@
 #include <memory>    // std::shared_ptr
 #include <stdexcept> // std::runtime_error
 #include <string>    // std::string
-#include <thread>
-#include <tuple>   // std::tuple
-#include <utility> // std::move
-#include <vector>  // std::vector
+#include <thread>    // std::this_thread
+#include <tuple>     // std::tuple
+#include <utility>   // std::move
+#include <vector>    // std::vector
 
 // ROS2
-#include <rclcpp/executors.hpp> // rclcpp::spin
-#include <rclcpp/node.hpp>      // rclcpp::Node
-#include <rclcpp/publisher.hpp> // rclcpp::Publisher
-#include <rclcpp/qos.hpp>       // rclcpp::QoS
-#include <rclcpp/timer.hpp>     // rclcpp::TimerBase
-#include <rclcpp/utilities.hpp> // rclcpp::shutdown
-#include <sensor_msgs/msg/image.hpp>
+#include <rclcpp/executors.hpp>      // rclcpp::spin
+#include <rclcpp/node.hpp>           // rclcpp::Node
+#include <rclcpp/publisher.hpp>      // rclcpp::Publisher
+#include <rclcpp/qos.hpp>            // rclcpp::QoS
+#include <rclcpp/timer.hpp>          // rclcpp::TimerBase
+#include <rclcpp/utilities.hpp>      // rclcpp::shutdown
+#include <sensor_msgs/msg/image.hpp> // sensor_msgs::msg::Image
 
 // OpenCV
-#include <opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp> // cv::
 
 using namespace std::chrono_literals;
 
@@ -42,7 +42,7 @@ class CameraFrameReaderPublisherNode : public rclcpp::Node
                                    std::string topic = "camera_frame")
         : Node("camera_frame_reader_publisher_node"), image_message_publisher_(nullptr)
     {
-        auto now = std::chrono::system_clock::now();
+        const auto now = std::chrono::system_clock::now();
 
         // Check if directories exist
         if (!std::filesystem::exists(data_path))
@@ -50,13 +50,13 @@ class CameraFrameReaderPublisherNode : public rclcpp::Node
             throw std::runtime_error("Specified data path does not exist.");
         }
 
-        std::filesystem::path timestamps_file = (data_path / camera_path) / "timestamps.txt";
+        const std::filesystem::path timestamps_file = (data_path / camera_path) / "timestamps.txt";
         if (!std::filesystem::exists(timestamps_file))
         {
             throw std::runtime_error("Timestamp data file timestamps.txt was not found.");
         }
 
-        std::filesystem::path image_data_path = (data_path / camera_path) / "data";
+        const std::filesystem::path image_data_path = (data_path / camera_path) / "data";
         if (!std::filesystem::exists(image_data_path))
         {
             throw std::runtime_error("Data path containing *.png files was not found..");
@@ -132,7 +132,7 @@ class CameraFrameReaderPublisherNode : public rclcpp::Node
     }
 
   private:
-    void updateTimerAndPublish(std::chrono::nanoseconds interval)
+    void updateTimerAndPublish(const std::chrono::nanoseconds interval)
     {
         // Create a new timer
         timer_ = this->create_wall_timer(interval, [this]() {

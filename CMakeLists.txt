@@ -4,6 +4,7 @@ project(lidar_camera_fusion)
 
 set(BUILD_TESTS TRUE)
 
+add_subdirectory(./data_types)
 add_subdirectory(./utilities)
 add_subdirectory(./common)
 add_subdirectory(./communication)

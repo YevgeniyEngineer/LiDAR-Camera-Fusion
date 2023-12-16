@@ -29,4 +29,5 @@ target_link_libraries(${PROJECT_NAME}
     common_library
     TBB::tbb
     Eigen3::Eigen
+    utilities
 )

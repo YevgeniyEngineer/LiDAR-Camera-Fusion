@@ -1,6 +1,5 @@
 add_library(common INTERFACE
     ./types.hpp
-    ./static_vector.hpp
 )
 
 set_target_properties(common

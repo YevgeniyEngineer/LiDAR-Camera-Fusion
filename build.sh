@@ -10,5 +10,5 @@ fi
 
 # Build
 cd "${BUILD_DIR}"
-cmake -DCMAKE_BUILD_TYPE=Release .. 
+cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON .. 
 cmake --build . -j8 --target all --config Release

@@ -4,8 +4,8 @@
 #include <cstddef>     // std::ptrdiff_t
 #include <cstdint>     // std::size_t
 #include <iterator>    // std::random_access_iterator
-#include <memory>      // std::unique_ptr
-#include <stdexcept>   // std::runtime_error
+#include <memory>      // std::allocator
+#include <stdexcept>   // std::runtime_error, std::out_of_range
 #include <type_traits> // std::is_same_v
 #include <utility>     // std::forward, std::move, std::swap
 
@@ -13,6 +13,8 @@ namespace utilities
 {
 template <typename T, std::size_t MaxSize> class BoundedVector final
 {
+    static_assert(MaxSize > 0U, "BoundedVector cannot have 0 max size.");
+
   public:
     static constexpr std::size_t MAX_SIZE = MaxSize;
 
@@ -31,38 +33,79 @@ template <typename T, std::size_t MaxSize> class BoundedVector final
 
     /// @brief Default constructor.
     /// Preallocates MAX_SIZE memory for the container.
-    BoundedVector() : size_{0U}, data_{std::make_unique<T[]>(MAX_SIZE)}
+    BoundedVector() : size_{0U}, data_{allocator_.allocate(MAX_SIZE)}
     {
     }
 
     /// @brief Constructs container and resizes to MAX_SIZE
-    BoundedVector(const std::size_t size) : size_{size}, data_{std::make_unique<T[]>(MAX_SIZE)}
+    BoundedVector(const size_type size) : size_{size}, data_{allocator_.allocate(MAX_SIZE)}
     {
+        // Check the size
         if (size_ > MAX_SIZE)
         {
             throw std::runtime_error("Cannot allocate memory beyond maximum size.");
         }
+
+        // Default construct elements
+        for (size_type i = 0U; i < size_; ++i)
+        {
+            allocator_.construct(data_ + i, T{});
+        }
     }
 
     /// @brief Copy constructor.
-    BoundedVector(const BoundedVector &other) : size_{other.size_}, data_{std::make_unique<T[]>(MAX_SIZE)}
+    BoundedVector(const BoundedVector &other) : size_{other.size_}, data_{allocator_.allocate(MAX_SIZE)}
     {
         // Copy only the required contents
-        std::copy(other.data_.get(), other.data_.get() + other.size_, data_.get());
+        for (size_type i = 0U; i < other.size_; ++i)
+        {
+            allocator_.construct(data_ + i, other.data_[i]);
+        }
     }
 
-    /// @brief Copy assignment operator using copy-and-swap idiom.
-    BoundedVector &operator=(BoundedVector other)
+    /// @brief Copy assignment operator.
+    BoundedVector &operator=(const BoundedVector &other)
     {
-        swap(*this, other);
+        if (this != &other)
+        {
+            BoundedVector temp{other}; // Use copy constructor
+            swap(*this, temp);
+        }
         return *this;
     }
 
     /// @brief Move constructor.
-    BoundedVector(BoundedVector &&other) noexcept : size_{other.size_}, data_{std::move(other.data_)}
+    BoundedVector(BoundedVector &&other) noexcept
+        : size_{other.size_}, data_{other.data_}, allocator_{std::move(other.allocator_)}
     {
         other.size_ = 0U;
         other.data_ = nullptr;
+    }
+
+    /// @brief Move assignment operator.
+    BoundedVector &operator=(BoundedVector &&other) noexcept
+    {
+        if (this != &other)
+        {
+            clear();                                // Destroy existing elements
+            allocator_.deallocate(data_, MAX_SIZE); // Deallocates existing memory
+
+            size_ = other.size_;
+            data_ = other.data_;
+            allocator_ = std::move(other.allocator_); // Move the allocator
+
+            other.size_ = 0U;
+            other.data_ = nullptr;
+        }
+
+        return *this;
+    }
+
+    /// @brief Destructor.
+    ~BoundedVector() noexcept
+    {
+        clear();                                // Destroy constructed objects
+        allocator_.deallocate(data_, MAX_SIZE); // Deallocate memory
     }
 
     /// @brief Mutable forward iterator.
@@ -491,52 +534,52 @@ template <typename T, std::size_t MaxSize> class BoundedVector final
 
     inline iterator begin() noexcept
     {
-        return iterator{data_.get()};
+        return iterator{data_};
     }
 
     inline iterator end() noexcept
     {
-        return iterator{data_.get() + static_cast<std::ptrdiff_t>(size_)};
+        return iterator{data_ + static_cast<std::ptrdiff_t>(size_)};
     }
 
     inline const_iterator cbegin() const noexcept
     {
-        return const_iterator{data_.get()};
+        return const_iterator{data_};
     }
 
     inline const_iterator cend() const noexcept
     {
-        return const_iterator{data_.get() + static_cast<std::ptrdiff_t>(size_)};
+        return const_iterator{data_ + static_cast<std::ptrdiff_t>(size_)};
     }
 
     inline reverse_iterator rbegin() noexcept
     {
-        return reverse_iterator{data_.get() + static_cast<std::ptrdiff_t>(size_) - 1};
+        return reverse_iterator{data_ + static_cast<std::ptrdiff_t>(size_) - 1};
     }
 
     inline reverse_iterator rend() noexcept
     {
-        return reverse_iterator{data_.get() - 1};
+        return reverse_iterator{data_ - 1};
     }
 
     inline const_reverse_iterator crbegin() const noexcept
     {
-        return const_reverse_iterator{data_.get() + static_cast<std::ptrdiff_t>(size_) - 1};
+        return const_reverse_iterator{data_ + static_cast<std::ptrdiff_t>(size_) - 1};
     }
 
     inline const_reverse_iterator crend() const noexcept
     {
-        return const_reverse_iterator{data_.get() - 1};
+        return const_reverse_iterator{data_ - 1};
     }
 
     /// @brief Returns maximum bounded size of the vector.
-    static constexpr inline std::size_t max_size() noexcept
+    static constexpr inline size_type max_size() noexcept
     {
         return MAX_SIZE;
     }
 
     /// @brief Returns current size of the vector.
-    inline std::size_t size() const noexcept
+    inline size_type size() const noexcept
     {
         return size_;
     }
@@ -606,15 +649,8 @@ template <typename T, std::size_t MaxSize> class BoundedVector final
             throw std::runtime_error("Exceeded capacity");
         }
 
-        new (&data_[size_++]) T{std::forward<U>(value)};
-    }
-
-    /// @brief Adds a value to the end of the container.
-    template <typename U> inline void push_back_nocheck(U &&value)
-    {
-        static_assert(std::is_same_v<U, T>, "<U> Value must match <T>.");
-
-        new (&data_[size_++]) T{std::forward<U>(value)};
+        allocator_.construct(data_ + size_, std::forward<U>(value));
+        ++size_;
     }
 
     /// @brief Constructs a value from input arguments at the end of the container.
@@ -628,15 +664,8 @@ template <typename T, std::size_t MaxSize> class BoundedVector final
             throw std::runtime_error("Capacity exceeded.");
         }
 
-        new (&data_[size_++]) T{std::forward<Args>(args)...};
-    }
-
-    /// @brief Constructs a value from input arguments at the end of the container.
-    template <typename... Args> inline void emplace_back_nocheck(Args &&...args)
-    {
-        static_assert(std::is_constructible_v<T, Args...>, "<T> must be constructible from Args.");
-
-        new (&data_[size_++]) T{std::forward<Args>(args)...};
+        allocator_.construct(data_ + size_, std::forward<Args>(args)...);
+        ++size_;
     }
 
     /// @brief Does not change contents of the container.
@@ -649,27 +678,23 @@ template <typename T, std::size_t MaxSize> class BoundedVector final
         }
 
         --size_;
-    }
-
-    /// @brief Does not change contents of the container.
-    inline void pop_back_nocheck()
-    {
-        if (size_ > 0U)
-        {
-            --size_;
-        }
+        allocator_.destroy(data_ + size_); // Destroy object
     }
 
     /// @brief Does not modify the underlying storage.
     /// Changes the size of the container to 0.
     inline void clear() noexcept
     {
-        size_ = 0U;
+        while (size_ > 0U)
+        {
+            --size_;
+            allocator_.destroy(data_ + size_); // Destroy object
+        }
     }
 
     /// @brief Returns value at a specified index.
     /// @throws std::out_of_range If index is exceeded.
-    inline T &at(const std::size_t index)
+    inline T &at(const size_type index)
     {
         if (index >= size_)
         {
@@ -681,7 +706,7 @@ template <typename T, std::size_t MaxSize> class BoundedVector final
 
     /// @brief Returns value at a specified index.
     /// @throws std::out_of_range If index is exceeded.
-    inline const T &at(const std::size_t index) const
+    inline const T &at(const size_type index) const
     {
         if (index >= size_)
         {
@@ -692,20 +717,27 @@ template <typename T, std::size_t MaxSize> class BoundedVector final
     }
 
     /// @brief Returns value at a specified index.
-    inline T &operator[](const std::size_t index) noexcept
+    inline T &operator[](const size_type index) noexcept
     {
         return data_[index];
     }
 
     /// @brief Returns value at a specified index.
-    inline const T &operator[](const std::size_t index) const noexcept
+    inline const T &operator[](const size_type index) const noexcept
     {
         return data_[index];
+    }
+
+    /// @brief Returns pointer to the raw memory.
+    inline const T *data() const
+    {
+        return data_;
     }
 
   private:
-    std::size_t size_;
-    std::unique_ptr<T[]> data_;
+    size_type size_;
+    std::allocator<T> allocator_;
+    T *data_; // Raw pointer to the allocated memory
 };
 
 } // namespace utilities

@@ -27,8 +27,8 @@ void readFileNamesWithExtensionFromDirectory(const std::filesystem::path &data_p
     std::sort(file_paths.begin(), file_paths.end());
 }
 
-void loadPointCloudDataFromBin(const std::filesystem::path &file_path,
-                               std::vector<data_types::CartesianReturn> &point_cloud)
+void loadPointCloudDataFromBinFile(const std::filesystem::path &file_path,
+                                   std::vector<data_types::CartesianReturn> &point_cloud)
 {
     // Clean the cache
     point_cloud.clear();

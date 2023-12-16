@@ -12,8 +12,8 @@ namespace utilities
 void readFileNamesWithExtensionFromDirectory(const std::filesystem::path &data_path, const std::string &file_extension,
                                              std::vector<std::filesystem::path> &file_paths);
 
-void loadPointCloudDataFromBin(const std::filesystem::path &file_path,
-                               std::vector<data_types::CartesianReturn> &point_cloud);
+void loadPointCloudDataFromBinFile(const std::filesystem::path &file_path,
+                                   std::vector<data_types::CartesianReturn> &point_cloud);
 
 void readTimestampsFromTxtFile(const std::filesystem::path &file_path, std::vector<std::int64_t> &timestamps);
 } // namespace utilities

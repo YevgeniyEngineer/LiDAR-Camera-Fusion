@@ -29,7 +29,7 @@ std::vector<common::PointCartesian> loadPointCloudDataFromBin(const std::string 
 
     // Copy raw floats into point cloud XYZI fields
     common::PointCartesian point_cache;
-    std::vector<common::PointCartesian> point_cloud;
+    std::vector<common::PointCartesian> point_cloud{};
     point_cloud.reserve(raw_data.size() / 4);
     for (std::size_t i = 0; i < raw_data.size(); i += 4)
     {

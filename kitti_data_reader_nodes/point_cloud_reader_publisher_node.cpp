@@ -52,7 +52,7 @@ class PointCloudReaderPublisherNode : public rclcpp::Node
     using PointCloud2 = sensor_msgs::msg::PointCloud2;
 
     PointCloudReaderPublisherNode(const std::filesystem::path &data_path, std::string topic = "pointcloud")
-        : rclcpp::Node::Node("point_cloud_reader_publisher_node"), cloud_publisher_(nullptr)
+        : rclcpp::Node("point_cloud_reader_publisher_node"), cloud_publisher_(nullptr)
     {
         const auto now = std::chrono::system_clock::now();
 

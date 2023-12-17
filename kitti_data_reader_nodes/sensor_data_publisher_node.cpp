@@ -40,15 +40,8 @@ class SensorDataPublisherNode final : public rclcpp::Node
     /// @brief Default destructor.
     ~SensorDataPublisherNode() = default;
 
-    /// @brief Load point cloud messages.
-    void loadCache(const std::filesystem::path &data_path, const std::string &topic_name,
-                   PublicationInfo<PointCloud2> &info);
-
-    /// @brief Load camera messages.
-    void loadCache(const std::filesystem::path &data_path, const std::string &topic_name, PublicationInfo<Image> &info);
-
     /// @brief Replay sensor data.
-    void replayData();
+    void run();
 
   private:
     template <typename MessageType> struct PublicationInfo final
@@ -67,6 +60,13 @@ class SensorDataPublisherNode final : public rclcpp::Node
     PublicationInfo<Image> camera_3_info_{};
     PublicationInfo<Image> camera_4_info_{};
 
+    /// @brief Load point cloud messages.
+    void loadCache(const std::filesystem::path &data_path, const std::string &topic_name,
+                   PublicationInfo<PointCloud2> &info);
+
+    /// @brief Load camera messages.
+    void loadCache(const std::filesystem::path &data_path, const std::string &topic_name, PublicationInfo<Image> &info);
+
     /// @brief Helper method to get the earliest timestamp.
     template <typename MessageType> std::int64_t getEarliestTimestamp(const PublicationInfo<MessageType> &info) const;
 
@@ -78,7 +78,7 @@ class SensorDataPublisherNode final : public rclcpp::Node
     template <typename MessageType>
     bool tryPublishMessage(PublicationInfo<MessageType> &info,
                            typename std::vector<std::pair<std::int64_t, MessageType>>::iterator &message_iterator,
-                           const std::int64_t elapsed_time);
+                           const std::int64_t elapsed_time_point);
 };
 
 SensorDataPublisherNode::SensorDataPublisherNode(
@@ -110,33 +110,35 @@ SensorDataPublisherNode::SensorDataPublisherNode(
         case 0: {
             loadCache(data_path, topic_name, point_cloud_info_);
             point_cloud_info_.publisher = this->create_publisher<PointCloud2>(topic_name, qos);
+            std::cout << "Created lidar publisher\n";
             break;
         }
         case 1: {
             loadCache(data_path, topic_name, camera_1_info_);
             camera_1_info_.publisher = this->create_publisher<Image>(topic_name, qos);
+            std::cout << "Created camera 1 publisher\n";
             break;
         }
         case 2: {
             loadCache(data_path, topic_name, camera_2_info_);
             camera_2_info_.publisher = this->create_publisher<Image>(topic_name, qos);
+            std::cout << "Created camera 2 publisher\n";
             break;
         }
         case 3: {
             loadCache(data_path, topic_name, camera_3_info_);
             camera_3_info_.publisher = this->create_publisher<Image>(topic_name, qos);
+            std::cout << "Created camera 3 publisher\n";
             break;
         }
         case 4: {
             loadCache(data_path, topic_name, camera_4_info_);
             camera_4_info_.publisher = this->create_publisher<Image>(topic_name, qos);
+            std::cout << "Created camera 4 publisher\n";
             break;
         }
         }
     }
-
-    // Replay data indefinitely
-    replayData();
 }
 
 void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, const std::string &topic_name,
@@ -150,11 +152,12 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
 
     // Load timestamps
     std::vector<std::int64_t> timestamps;
-    utilities::readTimestampsFromTxtFile(data_path, timestamps);
+    const auto timestamps_path = data_path / "timestamps.txt";
+    utilities::readTimestampsFromTxtFile(timestamps_path, timestamps);
     timestamps.shrink_to_fit();
 
     // Check if timestamps were loaded
-    if (timestamps.size())
+    if (!timestamps.empty())
     {
         // Reserve memory for stamped messages
         info.stamped_messages.reserve(timestamps.size());
@@ -261,22 +264,33 @@ template <typename MessageType>
 bool SensorDataPublisherNode::tryPublishMessage(
     PublicationInfo<MessageType> &info,
     typename std::vector<std::pair<std::int64_t, MessageType>>::iterator &message_iterator,
-    const std::int64_t elapsed_time)
+    const std::int64_t elapsed_time_point)
 {
     bool published = false;
 
-    if ((message_iterator != info.stamped_messages.end()) &&
-        (elapsed_time >= info.stamped_messages[std::distance(info.stamped_messages.begin(), message_iterator)].first))
+    if (message_iterator != info.stamped_messages.end())
     {
-        info.publisher->publish(message_iterator->second);
-        ++message_iterator;
-        published = true;
+        if (elapsed_time_point >=
+            info.stamped_messages[std::distance(info.stamped_messages.begin(), message_iterator)].first)
+        {
+            // Update timestamp
+            message_iterator->second.header.stamp.sec =
+                static_cast<std::int32_t>(static_cast<double>(elapsed_time_point) * 1e-9);
+            message_iterator->second.header.stamp.nanosec = static_cast<std::uint32_t>(
+                elapsed_time_point -
+                static_cast<std::int64_t>(static_cast<double>(message_iterator->second.header.stamp.sec) * 1e9));
+
+            // Publish
+            info.publisher->publish(message_iterator->second);
+            ++message_iterator;
+            published = true;
+        }
     }
 
     return published;
 }
 
-void SensorDataPublisherNode::replayData()
+void SensorDataPublisherNode::run()
 {
     // Initialize iterators for each sensor's messages
     auto point_cloud_iterator = point_cloud_info_.stamped_messages.begin();
@@ -309,31 +323,52 @@ void SensorDataPublisherNode::replayData()
     // Publish indefinitely
     while (rclcpp::ok())
     {
-        const auto current_time = std::chrono::steady_clock::now();
-        const auto elapsed_time =
-            std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count();
+        const auto current_time_point_nanosec =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
+                .count();
 
         // Publish next message from each sensor if the timestamp is reached
         const bool point_cloud_message_published =
-            tryPublishMessage(point_cloud_info_, point_cloud_iterator, elapsed_time);
-
-        const bool camera_1_message_published = tryPublishMessage(camera_1_info_, camera_1_iterator, elapsed_time);
-        const bool camera_2_message_published = tryPublishMessage(camera_2_info_, camera_2_iterator, elapsed_time);
-        const bool camera_3_message_published = tryPublishMessage(camera_3_info_, camera_3_iterator, elapsed_time);
-        const bool camera_4_message_published = tryPublishMessage(camera_4_info_, camera_4_iterator, elapsed_time);
+            tryPublishMessage(point_cloud_info_, point_cloud_iterator, current_time_point_nanosec);
+        const bool camera_1_message_published =
+            tryPublishMessage(camera_1_info_, camera_1_iterator, current_time_point_nanosec);
+        const bool camera_2_message_published =
+            tryPublishMessage(camera_2_info_, camera_2_iterator, current_time_point_nanosec);
+        const bool camera_3_message_published =
+            tryPublishMessage(camera_3_info_, camera_3_iterator, current_time_point_nanosec);
+        const bool camera_4_message_published =
+            tryPublishMessage(camera_4_info_, camera_4_iterator, current_time_point_nanosec);
 
         // If all messages were published, wraparound
-        if (point_cloud_message_published && camera_1_message_published && camera_2_message_published &&
-            camera_3_message_published && camera_4_message_published)
+        if ((point_cloud_iterator == point_cloud_info_.stamped_messages.end()) &&
+            (camera_1_iterator == camera_1_info_.stamped_messages.end()) &&
+            (camera_2_iterator == camera_2_info_.stamped_messages.end()) &&
+            (camera_3_iterator == camera_3_info_.stamped_messages.end()) &&
+            (camera_4_iterator == camera_4_info_.stamped_messages.end()))
         {
+            // Reset iterators
             point_cloud_iterator = point_cloud_info_.stamped_messages.begin();
             camera_1_iterator = camera_1_info_.stamped_messages.begin();
             camera_2_iterator = camera_2_info_.stamped_messages.begin();
             camera_3_iterator = camera_3_info_.stamped_messages.begin();
             camera_4_iterator = camera_4_info_.stamped_messages.begin();
+
+            // Recalculate earliest time point
+            const std::int64_t earliest_timestamp_nanosec =
+                std::min({getEarliestTimestamp(point_cloud_info_), getEarliestTimestamp(camera_1_info_),
+                          getEarliestTimestamp(camera_2_info_), getEarliestTimestamp(camera_3_info_),
+                          getEarliestTimestamp(camera_4_info_)});
+
+            // Shift timestamps to the latest time point
+            const std::int64_t time_offset = current_time_point_nanosec - earliest_timestamp_nanosec;
+
+            shiftTimestamps(point_cloud_info_, time_offset);
+            shiftTimestamps(camera_1_info_, time_offset);
+            shiftTimestamps(camera_2_info_, time_offset);
+            shiftTimestamps(camera_3_info_, time_offset);
+            shiftTimestamps(camera_4_info_, time_offset);
         }
 
-        rclcpp::spin_some(shared_from_this());
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
@@ -373,7 +408,8 @@ int main(int argc, char **argv)
             {3, camera_3_data_path, camera_3_topic},
             {4, camera_4_data_path, camera_4_topic}};
 
-        rclcpp::spin(std::make_shared<SensorDataPublisherNode>(data_paths));
+        auto node = std::make_shared<SensorDataPublisherNode>(data_paths);
+        node->run();
     }
     catch (const std::exception &ex)
     {

@@ -247,29 +247,29 @@ void SensorDataPublisherNode::replayData()
 
 int main(int argc, char **argv)
 {
-    if (argc < 3)
+    if (argc < 11)
     {
-        std::cout
-            << "Usage: " << argv[0]
-            << " <data_path> <point cloud topic> <camera 1 topic> <camera 2 topic> <camera 3 topic> <camera 4 topic>"
-            << std::endl;
+        std::cout << "Usage: " << argv[0]
+                  << " <lidar data path> <camera 1 data path> <camera 2 data path> <camera 3 data path> <camera 4 data "
+                     "path> <point cloud topic> <camera 1 topic> <camera 2 topic> <camera 3 topic> <camera 4 topic>"
+                  << std::endl;
         return 1;
     }
 
     rclcpp::init(argc, argv);
     rclcpp::install_signal_handlers();
 
-    const std::filesystem::path lidar_data_path = {argv[1]};
-    const std::filesystem::path camera_1_data_path = {argv[1]};
-    const std::filesystem::path camera_2_data_path = {argv[1]};
-    const std::filesystem::path camera_3_data_path = {argv[1]};
-    const std::filesystem::path camera_4_data_path = {argv[1]};
+    const std::filesystem::path lidar_data_path{argv[1]};
+    const std::filesystem::path camera_1_data_path{argv[2]};
+    const std::filesystem::path camera_2_data_path{argv[3]};
+    const std::filesystem::path camera_3_data_path{argv[4]};
+    const std::filesystem::path camera_4_data_path{argv[5]};
 
-    const std::string point_cloud_topic{argv[2]};
-    const std::string camera_1_topic{argv[3]};
-    const std::string camera_2_topic{argv[4]};
-    const std::string camera_3_topic{argv[5]};
-    const std::string camera_4_topic{argv[6]};
+    const std::string point_cloud_topic{argv[6]};
+    const std::string camera_1_topic{argv[7]};
+    const std::string camera_2_topic{argv[8]};
+    const std::string camera_3_topic{argv[9]};
+    const std::string camera_4_topic{argv[10]};
 
     try
     {

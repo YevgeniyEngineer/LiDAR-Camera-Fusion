@@ -106,7 +106,7 @@ void readTimestampsFromTxtFile(const std::filesystem::path &file_path, std::vect
         {
             auto nanosec = std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::system_clock::from_time_t(time).time_since_epoch());
-            std::string nanoseconds = line.substr(20);
+            const std::string nanoseconds = line.substr(20);
             nanosec += std::chrono::nanoseconds(std::stoll(nanoseconds));
             timestamps.push_back(nanosec.count());
         }

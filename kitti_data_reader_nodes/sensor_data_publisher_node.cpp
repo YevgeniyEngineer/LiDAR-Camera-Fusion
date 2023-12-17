@@ -41,10 +41,11 @@ class SensorDataPublisherNode final : public rclcpp::Node
     ~SensorDataPublisherNode() = default;
 
     /// @brief Load point cloud messages.
-    void loadCache(const std::filesystem::path &data_path, PublicationInfo<PointCloud2> &info);
+    void loadCache(const std::filesystem::path &data_path, const std::string &topic_name,
+                   PublicationInfo<PointCloud2> &info);
 
     /// @brief Load camera messages.
-    void loadCache(const std::filesystem::path &data_path, PublicationInfo<Image> &info);
+    void loadCache(const std::filesystem::path &data_path, const std::string &topic_name, PublicationInfo<Image> &info);
 
     /// @brief Replay sensor data.
     void replayData();
@@ -107,27 +108,27 @@ SensorDataPublisherNode::SensorDataPublisherNode(
         switch (sensor_id)
         {
         case 0: {
-            loadCache(data_path, point_cloud_info_);
+            loadCache(data_path, topic_name, point_cloud_info_);
             point_cloud_info_.publisher = this->create_publisher<PointCloud2>(topic_name, qos);
             break;
         }
         case 1: {
-            loadCache(data_path, camera_1_info_);
+            loadCache(data_path, topic_name, camera_1_info_);
             camera_1_info_.publisher = this->create_publisher<Image>(topic_name, qos);
             break;
         }
         case 2: {
-            loadCache(data_path, camera_2_info_);
+            loadCache(data_path, topic_name, camera_2_info_);
             camera_2_info_.publisher = this->create_publisher<Image>(topic_name, qos);
             break;
         }
         case 3: {
-            loadCache(data_path, camera_3_info_);
+            loadCache(data_path, topic_name, camera_3_info_);
             camera_3_info_.publisher = this->create_publisher<Image>(topic_name, qos);
             break;
         }
         case 4: {
-            loadCache(data_path, camera_4_info_);
+            loadCache(data_path, topic_name, camera_4_info_);
             camera_4_info_.publisher = this->create_publisher<Image>(topic_name, qos);
             break;
         }
@@ -138,12 +139,104 @@ SensorDataPublisherNode::SensorDataPublisherNode(
     replayData();
 }
 
-void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, PublicationInfo<PointCloud2> &info)
+void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, const std::string &topic_name,
+                                        PublicationInfo<PointCloud2> &info)
 {
-    // TODO
+    // Check if the directory exists
+    if (!std::filesystem::exists(data_path))
+    {
+        throw std::runtime_error("Specified data path " + data_path.string() + " does not exist.");
+    }
+
+    // Load timestamps
+    std::vector<std::int64_t> timestamps;
+    utilities::readTimestampsFromTxtFile(data_path, timestamps);
+    timestamps.shrink_to_fit();
+
+    // Check if timestamps were loaded
+    if (timestamps.size())
+    {
+        // Reserve memory for stamped messages
+        info.stamped_messages.reserve(timestamps.size());
+
+        // Read data files
+        std::vector<std::filesystem::path> file_paths;
+        file_paths.reserve(timestamps.size());
+
+        const auto data_folder = data_path / "data";
+        utilities::readFileNamesWithExtensionFromDirectory(data_folder, ".bin", file_paths);
+
+        // Check the number of files match the number of timestamps
+        if (file_paths.size() != timestamps.size())
+        {
+            throw std::runtime_error("The number of messages does not match the number of timestamps.");
+        }
+
+        // Fields to be used when populating messages
+        // <field name, field offset, field type, field count>
+        const std::vector<std::tuple<std::string, std::uint32_t, std::uint8_t, std::uint32_t>> fields = {
+            {"x", offsetof(data_types::CartesianReturn, x), sensor_msgs::msg::PointField::FLOAT32, 1},
+            {"y", offsetof(data_types::CartesianReturn, y), sensor_msgs::msg::PointField::FLOAT32, 1},
+            {"z", offsetof(data_types::CartesianReturn, z), sensor_msgs::msg::PointField::FLOAT32, 1},
+            {"intensity", offsetof(data_types::CartesianReturn, intensity), sensor_msgs::msg::PointField::FLOAT32, 1}};
+
+        // Aggregate messages into cache
+        point_cloud_info_.stamped_messages.reserve(timestamps.size());
+        for (std::size_t message_number = 0U; message_number < timestamps.size(); ++message_number)
+        {
+            const auto &timestamp = timestamps[message_number];
+            const auto &file_path = file_paths[message_number];
+
+            // Read lidar cloud
+            std::vector<data_types::CartesianReturn> point_cloud_data;
+            utilities::loadPointCloudDataFromBinFile(file_path, point_cloud_data);
+
+            if (point_cloud_data.empty())
+            {
+                std::cerr << "Empty binary file, skipping." << std::endl;
+                continue;
+            }
+
+            // Construct output message
+            PointCloud2 point_cloud_message;
+            point_cloud_message.height = 1;
+            point_cloud_message.width = point_cloud_data.size();
+            point_cloud_message.is_bigendian = false;
+            point_cloud_message.point_step = sizeof(data_types::CartesianReturn);
+            point_cloud_message.row_step = sizeof(data_types::CartesianReturn) * point_cloud_data.size();
+            point_cloud_message.is_dense = true;
+            point_cloud_message.header.frame_id = topic_name;
+
+            // Set timestamp
+            point_cloud_message.header.stamp.sec = static_cast<std::int32_t>(static_cast<double>(timestamp) * 1e-9);
+            point_cloud_message.header.stamp.nanosec = static_cast<std::uint32_t>(
+                timestamp - static_cast<std::int64_t>(static_cast<double>(point_cloud_message.header.stamp.sec) * 1e9));
+
+            // Populate fields
+            point_cloud_message.fields.reserve(fields.size());
+            for (const auto &field : fields)
+            {
+                sensor_msgs::msg::PointField field_cache;
+                field_cache.name = std::get<0>(field);
+                field_cache.offset = std::get<1>(field);
+                field_cache.datatype = std::get<2>(field);
+                field_cache.count = std::get<3>(field);
+                point_cloud_message.fields.push_back(std::move(field_cache));
+            }
+
+            // Copy the point cloud data
+            point_cloud_message.data.resize(sizeof(data_types::CartesianReturn) * point_cloud_data.size());
+            std::memcpy(point_cloud_message.data.data(), point_cloud_data.data(),
+                        sizeof(data_types::CartesianReturn) * point_cloud_data.size());
+
+            // Add message to the message cache
+            point_cloud_info_.stamped_messages.emplace_back(timestamp, std::move(point_cloud_message));
+        }
+    }
 }
 
-void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, PublicationInfo<Image> &info)
+void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, const std::string &topic_name,
+                                        PublicationInfo<Image> &info)
 {
     // TODO
 }

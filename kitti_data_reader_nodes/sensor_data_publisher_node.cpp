@@ -23,6 +23,9 @@
 #include <tuple>     // std::tuple
 #include <utility>   // std::pair
 
+// OpenCV
+#include <opencv2/opencv.hpp> // cv::
+
 class SensorDataPublisherNode final : public rclcpp::Node
 {
     // Forward declaration
@@ -241,7 +244,70 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
 void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, const std::string &topic_name,
                                         PublicationInfo<Image> &info)
 {
-    // TODO
+    // Check if the directory exists
+    if (!std::filesystem::exists(data_path))
+    {
+        throw std::runtime_error("Specified data path " + data_path.string() + " does not exist.");
+    }
+
+    // Load timestamps
+    std::vector<std::int64_t> timestamps;
+    const auto timestamps_path = data_path / "timestamps.txt";
+    utilities::readTimestampsFromTxtFile(timestamps_path, timestamps);
+    timestamps.shrink_to_fit();
+
+    // Check if timestamps were loaded
+    if (!timestamps.empty())
+    {
+        // Reserve memory for stamped messages
+        info.stamped_messages.reserve(timestamps.size());
+
+        // Read data files
+        std::vector<std::filesystem::path> file_paths;
+        file_paths.reserve(timestamps.size());
+
+        const auto data_folder = data_path / "data";
+        utilities::readFileNamesWithExtensionFromDirectory(data_folder, ".png", file_paths);
+
+        // Check the number of files match the number of timestamps
+        if (file_paths.size() != timestamps.size())
+        {
+            throw std::runtime_error("The number of messages does not match the number of timestamps: " +
+                                     std::to_string(file_paths.size()) + " vs " + std::to_string(timestamps.size()));
+        }
+
+        // Aggregate messages into cache
+        point_cloud_info_.stamped_messages.reserve(timestamps.size());
+        for (std::size_t message_number = 0U; message_number < timestamps.size(); ++message_number)
+        {
+            const auto &timestamp = timestamps[message_number];
+
+            // Read data from the file
+            const cv::Mat image = cv::imread(file_paths[message_number], cv::IMREAD_COLOR);
+
+            // Convert image into image message format
+            Image image_message;
+
+            image_message.header.frame_id = topic_name;
+            image_message.height = image.rows;
+            image_message.width = image.cols;
+            image_message.encoding = "bgr8"; // For color image, adjust if using grayscale or other types
+            image_message.is_bigendian = false;
+            image_message.step = image.step;
+
+            // Set timestamp
+            image_message.header.stamp.sec = static_cast<std::int32_t>(static_cast<double>(timestamp) * 1e-9);
+            image_message.header.stamp.nanosec = static_cast<std::uint32_t>(
+                timestamp - static_cast<std::int64_t>(static_cast<double>(image_message.header.stamp.sec) * 1e9));
+
+            // Copy byte data
+            image_message.data.resize(image_message.step * image_message.height);
+            std::memcpy(&image_message.data[0], image.data, image_message.step * image_message.height);
+
+            // Add message to the message cache
+            info.stamped_messages.emplace_back(timestamp, std::move(image_message));
+        }
+    }
 }
 
 template <typename MessageType>

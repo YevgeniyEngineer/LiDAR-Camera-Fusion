@@ -24,7 +24,7 @@ CAMERA_2_TOPIC="camera_2"
 CAMERA_3_TOPIC="camera_3"
 CAMERA_4_TOPIC="camera_4"
 
-./kitti_data_reader_nodes/sensor_data_publisher_node \
+./sensor_data_publisher_node/sensor_data_publisher_node \
     "${LIDAR_DATA_PATH}" \
     "${CAMERA_1_DATA_PATH}" \
     "${CAMERA_2_DATA_PATH}" \

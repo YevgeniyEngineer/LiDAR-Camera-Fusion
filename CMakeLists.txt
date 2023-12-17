@@ -6,9 +6,4 @@ set(BUILD_TESTS TRUE)
 
 add_subdirectory(./data_types)
 add_subdirectory(./utilities)
-add_subdirectory(./common)
-add_subdirectory(./communication)
-add_subdirectory(./kitti_data_reader_nodes)
-
-# add_subdirectory(./processing)
-# add_subdirectory(./data_processor_node)
+add_subdirectory(./sensor_data_publisher_node)

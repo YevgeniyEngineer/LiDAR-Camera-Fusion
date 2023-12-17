@@ -20,21 +20,33 @@
 #include <iterator>  // std::distance
 #include <limits>    // std::numeric_limits
 #include <thread>    // std::this_thread
+#include <tuple>     // std::tuple
 #include <utility>   // std::pair
 
 class SensorDataPublisherNode final : public rclcpp::Node
 {
+    // Forward declaration
+    template <typename MessageType> struct PublicationInfo;
+
   public:
     using PointCloud2 = sensor_msgs::msg::PointCloud2;
     using Image = sensor_msgs::msg::Image;
 
-    SensorDataPublisherNode(const std::filesystem::path &data_path, std::string lidar_topic = "lidar",
-                            std::string camera_1_topic = "camera_1", std::string camera_2_topic = "camera_2",
-                            std::string camera_3_topic = "camera_3", std::string camera_4_topic = "camera_4");
+    /// @brief Constructor of the node.
+    /// @param data_paths containing a tuple of <sensor id, data path, topic name>
+    SensorDataPublisherNode(
+        const std::vector<std::tuple<std::int32_t, std::filesystem::path, std::string>> &data_paths);
 
+    /// @brief Default destructor.
     ~SensorDataPublisherNode() = default;
 
-    void loadCache();
+    /// @brief Load point cloud messages.
+    void loadCache(const std::filesystem::path &data_path, PublicationInfo<PointCloud2> &info);
+
+    /// @brief Load camera messages.
+    void loadCache(const std::filesystem::path &data_path, PublicationInfo<Image> &info);
+
+    /// @brief Replay sensor data.
     void replayData();
 
   private:
@@ -54,23 +66,22 @@ class SensorDataPublisherNode final : public rclcpp::Node
     PublicationInfo<Image> camera_3_info_{};
     PublicationInfo<Image> camera_4_info_{};
 
-    /// @brief Helper method to get the earliest timestamp
+    /// @brief Helper method to get the earliest timestamp.
     template <typename MessageType> std::int64_t getEarliestTimestamp(const PublicationInfo<MessageType> &info) const;
 
-    /// @brief Shifts timestamp of each sensor to the common time point
+    /// @brief Shifts timestamp of each sensor to the common time point.
     template <typename MessageType> void shiftTimestamps(PublicationInfo<MessageType> &info, std::int64_t time_offset);
 
-    /// @brief Check iterator and publish
-    /// @returns True if message was published
+    /// @brief Check iterator and publish.
+    /// @returns True if message was published.
     template <typename MessageType>
     bool tryPublishMessage(PublicationInfo<MessageType> &info,
                            typename std::vector<std::pair<std::int64_t, MessageType>>::iterator &message_iterator,
                            const std::int64_t elapsed_time);
 };
 
-SensorDataPublisherNode::SensorDataPublisherNode(const std::filesystem::path &data_path, std::string lidar_topic,
-                                                 std::string camera_1_topic, std::string camera_2_topic,
-                                                 std::string camera_3_topic, std::string camera_4_topic)
+SensorDataPublisherNode::SensorDataPublisherNode(
+    const std::vector<std::tuple<std::int32_t, std::filesystem::path, std::string>> &data_paths)
     : rclcpp::Node{"sensor_data_publisher_node"}
 {
     // Specify QoS
@@ -91,20 +102,48 @@ SensorDataPublisherNode::SensorDataPublisherNode(const std::filesystem::path &da
     qos.deadline(std::chrono::seconds(1));
 
     // Create publishers
-    point_cloud_info_.publisher = this->create_publisher<PointCloud2>(lidar_topic, qos);
-    camera_1_info_.publisher = this->create_publisher<Image>(camera_1_topic, qos);
-    camera_2_info_.publisher = this->create_publisher<Image>(camera_2_topic, qos);
-    camera_3_info_.publisher = this->create_publisher<Image>(camera_3_topic, qos);
-    camera_4_info_.publisher = this->create_publisher<Image>(camera_4_topic, qos);
-
-    // Load data into cache
-    loadCache();
+    for (const auto &[sensor_id, data_path, topic_name] : data_paths)
+    {
+        switch (sensor_id)
+        {
+        case 0: {
+            loadCache(data_path, point_cloud_info_);
+            point_cloud_info_.publisher = this->create_publisher<PointCloud2>(topic_name, qos);
+            break;
+        }
+        case 1: {
+            loadCache(data_path, camera_1_info_);
+            camera_1_info_.publisher = this->create_publisher<Image>(topic_name, qos);
+            break;
+        }
+        case 2: {
+            loadCache(data_path, camera_2_info_);
+            camera_2_info_.publisher = this->create_publisher<Image>(topic_name, qos);
+            break;
+        }
+        case 3: {
+            loadCache(data_path, camera_3_info_);
+            camera_3_info_.publisher = this->create_publisher<Image>(topic_name, qos);
+            break;
+        }
+        case 4: {
+            loadCache(data_path, camera_4_info_);
+            camera_4_info_.publisher = this->create_publisher<Image>(topic_name, qos);
+            break;
+        }
+        }
+    }
 
     // Replay data indefinitely
     replayData();
 }
 
-void SensorDataPublisherNode::loadCache()
+void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, PublicationInfo<PointCloud2> &info)
+{
+    // TODO
+}
+
+void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, PublicationInfo<Image> &info)
 {
     // TODO
 }
@@ -220,7 +259,12 @@ int main(int argc, char **argv)
     rclcpp::init(argc, argv);
     rclcpp::install_signal_handlers();
 
-    const std::filesystem::path data_path = {argv[1]};
+    const std::filesystem::path lidar_data_path = {argv[1]};
+    const std::filesystem::path camera_1_data_path = {argv[1]};
+    const std::filesystem::path camera_2_data_path = {argv[1]};
+    const std::filesystem::path camera_3_data_path = {argv[1]};
+    const std::filesystem::path camera_4_data_path = {argv[1]};
+
     const std::string point_cloud_topic{argv[2]};
     const std::string camera_1_topic{argv[3]};
     const std::string camera_2_topic{argv[4]};
@@ -229,8 +273,14 @@ int main(int argc, char **argv)
 
     try
     {
-        rclcpp::spin(std::make_shared<SensorDataPublisherNode>(data_path, point_cloud_topic, camera_1_topic,
-                                                               camera_2_topic, camera_3_topic, camera_4_topic));
+        const std::vector<std::tuple<std::int32_t, std::filesystem::path, std::string>> data_paths{
+            {0, lidar_data_path, point_cloud_topic},
+            {1, camera_1_data_path, camera_1_topic},
+            {2, camera_2_data_path, camera_2_topic},
+            {3, camera_3_data_path, camera_3_topic},
+            {4, camera_4_data_path, camera_4_topic}};
+
+        rclcpp::spin(std::make_shared<SensorDataPublisherNode>(data_paths));
     }
     catch (const std::exception &ex)
     {

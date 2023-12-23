@@ -80,7 +80,10 @@
         "filesystem": "cpp",
         "core": "cpp",
         "valarray": "cpp",
-        "cassert": "cpp"
+        "cassert": "cpp",
+        "any": "cpp",
+        "mman.h": "c",
+        "string.h": "c"
     },
     "cmake.configureOnOpen": true,
     "clangd.arguments": [

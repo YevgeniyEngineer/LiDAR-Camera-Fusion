@@ -9,6 +9,7 @@ add_library(${PROJECT_NAME} SHARED
 
     # Sources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/file_operations.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities/tlsf/tlsf.c
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -32,7 +33,9 @@ if(BUILD_TESTS)
     enable_testing()
 
     # Add test executable
-    add_executable(test_bounded_vector ${CMAKE_CURRENT_SOURCE_DIR}/test/test_bounded_vector.cpp)
+    add_executable(test_bounded_vector
+        ${CMAKE_CURRENT_SOURCE_DIR}/test/test_bounded_vector.cpp
+    )
 
     # Link libraries
     target_link_libraries(test_bounded_vector
@@ -41,7 +44,19 @@ if(BUILD_TESTS)
         GTest::gtest_main
     )
 
+    # Add test executable
+    add_executable(test_tlsf_allocator
+        ${CMAKE_CURRENT_SOURCE_DIR}/test/test_tlsf_allocator.cpp
+    )
+
+    target_link_libraries(test_tlsf_allocator
+        PRIVATE
+        ${PROJECT_NAME}
+        GTest::gtest_main
+    )
+
     # Discover test cases
     include(GoogleTest)
     gtest_discover_tests(test_bounded_vector)
+    gtest_discover_tests(test_tlsf_allocator)
 endif()

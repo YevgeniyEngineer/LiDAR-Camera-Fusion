@@ -3,7 +3,6 @@
 
 #include <condition_variable> // std::condition_variable
 #include <cstdlib>            // std::size_t
-#include <functional>         // std::function
 #include <future>             // std::packaged_task
 #include <mutex>              // std::mutex
 #include <queue>              // std::queue
@@ -37,10 +36,29 @@ class ThreadPool final
     /// @brief Deleted move assignment operator.
     ThreadPool &operator=(ThreadPool &&) = delete;
 
-    /// @brief Enqueue a task into a thread pool.
+    /// @brief Type-erased enqueue of a task into a thread pool.
     /// @param Function to be enqueued.
     /// @return Future.
-    std::future<void> enqueue(std::function<void()> func);
+    template <class F> auto enqueue(F &&func) -> std::future<decltype(func())>
+    {
+        using return_type = decltype(func());
+        std::packaged_task<return_type()> task(std::forward<F>(func));
+        std::future<return_type> result = task.get_future();
+
+        {
+            const std::lock_guard<std::mutex> lock(mutex_);
+
+            if (stop_)
+            {
+                throw std::runtime_error("enqueue on stopped ThreadPool");
+            }
+
+            tasks_.emplace([t = std::move(task)]() mutable { t(); });
+        }
+
+        condition_variable_.notify_one();
+        return result;
+    }
 
   private:
     std::vector<std::thread> threads_;

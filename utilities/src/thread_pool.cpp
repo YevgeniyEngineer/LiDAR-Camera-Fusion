@@ -43,24 +43,4 @@ ThreadPool::~ThreadPool()
         thread.join();
     }
 }
-
-std::future<void> ThreadPool::enqueue(std::function<void()> func)
-{
-    std::packaged_task<void()> task(func);
-    std::future<void> result = task.get_future();
-
-    {
-        const std::lock_guard<std::mutex> lock(mutex_);
-
-        if (stop_)
-        {
-            throw std::runtime_error("enqueue on stopped ThreadPool");
-        }
-
-        tasks_.emplace(std::move(task));
-    }
-
-    condition_variable_.notify_one();
-    return result;
-}
 } // namespace utilities

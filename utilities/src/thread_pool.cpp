@@ -4,7 +4,7 @@ namespace utilities
 {
 ThreadPool::ThreadPool(std::size_t number_of_threads) : stop_(false)
 {
-    for (std::size_t i = 0; i < number_of_threads; ++i)
+    for (std::size_t i = 0U; i < number_of_threads; ++i)
     {
         threads_.emplace_back([this]() {
             while (true)

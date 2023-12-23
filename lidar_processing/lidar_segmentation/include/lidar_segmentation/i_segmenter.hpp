@@ -1,6 +1,11 @@
 #ifndef LIDAR_PROCESSING__LIDAR_SEGMENTATION__I_SEGMENTER_HPP
 #define LIDAR_PROCESSING__LIDAR_SEGMENTATION__I_SEGMENTER_HPP
 
+#include "segmentation_label.hpp" // SegmentationLabel
+
+#include <pcl/point_cloud.h> // pcl::PointCloud
+#include <pcl/point_types.h> // pcl::PointXYZ
+
 #include <memory>      // std::unique_ptr, std::make_unique
 #include <type_traits> // std::is_base_of_v
 #include <utility>     // std::forward
@@ -40,7 +45,14 @@ class ISegmenter
     }
 
     /// @brief Pure virtual run method to be implemented by the derived class.
-    virtual void run() = 0;
+    /// @param cloud - Input variant of the point cloud.
+    /// @param labels - Output segmentation labels (equal to the number of elements in the input cloud).
+    virtual void run(const pcl::PointCloud<pcl::PointXYZ> &cloud, std::vector<SegmentationLabel> &labels) = 0;
+
+    /// @brief Pure virtual run method to be implemented by the derived class.
+    /// @param cloud - Input variant of the point cloud.
+    /// @param labels - Output segmentation labels (equal to the number of elements in the input cloud).
+    virtual void run(const pcl::PointCloud<pcl::PointXYZI> &cloud, std::vector<SegmentationLabel> &labels) = 0;
 };
 } // namespace lidar_processing::lidar_segmentation
 

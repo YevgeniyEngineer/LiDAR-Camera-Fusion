@@ -60,6 +60,12 @@ class ThreadPool final
         return result;
     }
 
+    /// @brief Get the number of running threads.
+    inline std::size_t threadCount() const noexcept
+    {
+        return threads_.size();
+    }
+
   private:
     std::vector<std::thread> threads_;
     std::queue<std::packaged_task<void()>> tasks_;

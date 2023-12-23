@@ -13,7 +13,7 @@ find_package(OpenCV REQUIRED)
 
 # To Read Sensor Data
 add_executable(sensor_data_publisher_node
-    ./sensor_data_publisher_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_data_publisher_node.cpp
 )
 target_include_directories(sensor_data_publisher_node
     PRIVATE

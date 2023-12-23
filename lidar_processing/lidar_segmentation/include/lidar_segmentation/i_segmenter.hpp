@@ -1,11 +1,11 @@
-#ifndef LIDAR_PROCESSING__SEGMENTATION__I_SEGMENTER_HPP
-#define LIDAR_PROCESSING__SEGMENTATION__I_SEGMENTER_HPP
+#ifndef LIDAR_PROCESSING__LIDAR_SEGMENTATION__I_SEGMENTER_HPP
+#define LIDAR_PROCESSING__LIDAR_SEGMENTATION__I_SEGMENTER_HPP
 
 #include <memory>      // std::unique_ptr, std::make_unique
 #include <type_traits> // std::is_base_of_v
 #include <utility>     // std::forward
 
-namespace lidar_processing::segmentation
+namespace lidar_processing::lidar_segmentation
 {
 class ISegmenter
 {
@@ -42,6 +42,6 @@ class ISegmenter
     /// @brief Pure virtual run method to be implemented by the derived class.
     virtual void run() = 0;
 };
-} // namespace lidar_processing::segmentation
+} // namespace lidar_processing::lidar_segmentation
 
-#endif // LIDAR_PROCESSING__SEGMENTATION__I_SEGMENTER_HPP
+#endif // LIDAR_PROCESSING__LIDAR_SEGMENTATION__I_SEGMENTER_HPP

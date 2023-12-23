@@ -146,9 +146,3 @@ TEST_F(BoundedVectorTest, AtMethod)
     // Test out-of-bounds access
     EXPECT_THROW(vector.at(2), std::out_of_range);
 }
-
-// int main(int argc, char *argv[])
-// {
-//     testing::InitGoogleTest(&argc, argv);
-//     return RUN_ALL_TESTS();
-// }

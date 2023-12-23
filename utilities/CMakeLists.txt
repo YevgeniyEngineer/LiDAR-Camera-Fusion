@@ -10,6 +10,7 @@ add_library(${PROJECT_NAME} SHARED
     # Sources
     ${CMAKE_CURRENT_SOURCE_DIR}/src/file_operations.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities/tlsf/tlsf.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp
 )
 
 target_include_directories(${PROJECT_NAME}

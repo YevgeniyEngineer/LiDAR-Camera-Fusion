@@ -32,31 +32,26 @@ if(BUILD_TESTS)
     find_package(GTest REQUIRED)
     enable_testing()
 
-    # Add test executable
-    add_executable(test_bounded_vector
-        ${CMAKE_CURRENT_SOURCE_DIR}/test/test_bounded_vector.cpp
-    )
+    # Glob all test source files
+    file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp")
 
-    # Link libraries
-    target_link_libraries(test_bounded_vector
-        PRIVATE
-        ${PROJECT_NAME}
-        GTest::gtest_main
-    )
+    # Create an executable for each test source file
+    foreach(TEST_SOURCE ${TEST_SOURCES})
+        # Get a human-readable name for the test executable
+        get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
 
-    # Add test executable
-    add_executable(test_tlsf_allocator
-        ${CMAKE_CURRENT_SOURCE_DIR}/test/test_tlsf_allocator.cpp
-    )
+        # Add test executable
+        add_executable(${TEST_NAME} ${TEST_SOURCE})
 
-    target_link_libraries(test_tlsf_allocator
-        PRIVATE
-        ${PROJECT_NAME}
-        GTest::gtest_main
-    )
+        # Link libraries
+        target_link_libraries(${TEST_NAME}
+            PRIVATE
+            ${PROJECT_NAME}
+            GTest::gtest_main
+        )
 
-    # Discover test cases
-    include(GoogleTest)
-    gtest_discover_tests(test_bounded_vector)
-    gtest_discover_tests(test_tlsf_allocator)
+        # Discover test cases
+        include(GoogleTest)
+        gtest_discover_tests(${TEST_NAME})
+    endforeach()
 endif()

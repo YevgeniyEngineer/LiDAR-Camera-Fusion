@@ -33,7 +33,7 @@ template <typename T> class TLSFAllocator
         using other = TLSFAllocator<U>;
     };
 
-    TLSFAllocator() : tlsf_instance_{}
+    TLSFAllocator() : tlsf_instance_{TLSF_INIT}
     {
     }
 
@@ -79,7 +79,7 @@ template <typename T> class TLSFAllocator
         }
     }
 
-    void deallocate(pointer p, size_type n)
+    inline void deallocate(pointer p, size_type n)
     {
         tlsf_free(&tlsf_instance_, p);
     }

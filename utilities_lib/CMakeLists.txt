@@ -10,14 +10,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Source files
 set(SOURCE_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities_lib/tlsf/tlsf.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tlsf/tlsf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/file_operations.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/thread_pool.cpp
 )
 
 # Header files
 set(HEADER_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities_lib/tlsf/tlsf.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tlsf/tlsf.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities_lib/bounded_vector.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities_lib/file_operations.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities_lib/thread_pool.hpp
@@ -32,6 +32,7 @@ target_include_directories(${PROJECT_NAME}
     PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party>
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

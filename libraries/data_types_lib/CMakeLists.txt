@@ -21,7 +21,7 @@ set(HEADER_FILES
 )
 
 # Create library
-add_library(${PROJECT_NAME} INTERFACE ${SOURCE_FILES} ${HEADER_FILES})
+add_library(${PROJECT_NAME} INTERFACE)
 
 # Specify include directories for the library
 target_include_directories(${PROJECT_NAME}

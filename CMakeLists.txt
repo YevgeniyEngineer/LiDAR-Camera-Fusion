@@ -5,9 +5,9 @@ project(lidar_camera_fusion)
 set(BUILD_TESTS TRUE)
 
 # Libraries
-add_subdirectory(./data_types_lib)
-add_subdirectory(./utilities_lib)
-add_subdirectory(./lidar_processing_lib)
+add_subdirectory(./libraries/data_types_lib)
+add_subdirectory(./libraries/utilities_lib)
+add_subdirectory(./libraries/lidar_processing_lib)
 
 # # Nodes
 # add_subdirectory(./sensor_data_publisher_node)

@@ -1,12 +1,12 @@
-#ifndef LIDAR_PROCESSING__LIDAR_SEGMENTATION__RANSAC_SEGMENTER_HPP
-#define LIDAR_PROCESSING__LIDAR_SEGMENTATION__RANSAC_SEGMENTER_HPP
+#ifndef LIDAR_PROCESSING_LIB__SEGMENTATION__RANSAC_SEGMENTER_HPP
+#define LIDAR_PROCESSING_LIB__SEGMENTATION__RANSAC_SEGMENTER_HPP
 
-#include "i_segmenter.hpp"           // ISegmenter
-#include <array>                     // std::array
-#include <random>                    // std::random_device, std::mt19937, std::uniform_int_distribution
-#include <utilities/thread_pool.hpp> // ThreadPool
+#include "i_segmenter.hpp"               // ISegmenter
+#include <array>                         // std::array
+#include <random>                        // std::random_device, std::mt19937, std::uniform_int_distribution
+#include <utilities_lib/thread_pool.hpp> // ThreadPool
 
-namespace lidar_processing::lidar_segmentation
+namespace lidar_processing_lib::segmentation
 {
 class RansacSegmenter : public ISegmenter
 {
@@ -23,7 +23,7 @@ class RansacSegmenter : public ISegmenter
     float orthogonal_distance_threshold_;
     std::uint32_t number_of_iterations_;
 
-    utilities::ThreadPool thread_pool_;
+    utilities_lib::ThreadPool thread_pool_;
     std::vector<std::future<std::uint32_t>> futures_;
 
     template <typename PointT>
@@ -179,6 +179,6 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
         future.get();
     }
 }
-} // namespace lidar_processing::lidar_segmentation
+} // namespace lidar_processing_lib::segmentation
 
-#endif // LIDAR_PROCESSING__LIDAR_SEGMENTATION__RANSAC_SEGMENTER_HPP
+#endif // LIDAR_PROCESSING__SEGMENTATION__RANSAC_SEGMENTER_HPP

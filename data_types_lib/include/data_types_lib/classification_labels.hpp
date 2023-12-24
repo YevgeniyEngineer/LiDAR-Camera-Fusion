@@ -1,10 +1,11 @@
-#pragma once
+#ifndef DATA_TYPES_LIB__CLASSIFICATION_LABEL_HPP
+#define DATA_TYPES_LIB__CLASSIFICATION_LABEL_HPP
 
 #include <cstdint>
 
 namespace data_types_lib
 {
-enum class ClassificationLabels : std::uint32_t
+enum class ClassificationLabel : std::uint8_t
 {
     UNCLASSIFIED = 0,
     NOISE,
@@ -28,3 +29,5 @@ enum class ClassificationLabels : std::uint32_t
     TRAFFIC_SIGN
 };
 } // namespace data_types_lib
+
+#endif // DATA_TYPES_LIB__CLASSIFICATION_LABEL_HPP

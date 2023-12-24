@@ -1,6 +1,6 @@
-#include <lidar_segmentation/ransac_segmenter.hpp>
+#include <lidar_processing_lib/segmentation/ransac_segmenter.hpp>
 
-namespace lidar_processing::lidar_segmentation
+namespace lidar_processing_lib::segmentation
 {
 RansacSegmenter::RansacSegmenter(float orthogonal_distance_threshold, std::uint32_t number_of_iterations,
                                  std::size_t thread_count)
@@ -22,4 +22,4 @@ void RansacSegmenter::run(const pcl::PointCloud<pcl::PointXYZI> &cloud, std::vec
 {
     segment(cloud, labels);
 }
-} // namespace lidar_processing::lidar_segmentation
+} // namespace lidar_processing_lib::segmentation

@@ -1,7 +1,7 @@
-#ifndef LIDAR_PROCESSING__LIDAR_SEGMENTATION__I_SEGMENTER_HPP
-#define LIDAR_PROCESSING__LIDAR_SEGMENTATION__I_SEGMENTER_HPP
+#ifndef LIDAR_PROCESSING_LIB__SEGMENTATION__I_SEGMENTER_HPP
+#define LIDAR_PROCESSING_LIB__SEGMENTATION__I_SEGMENTER_HPP
 
-#include "segmentation_label.hpp" // SegmentationLabel
+#include <data_types_lib/segmentation_label.hpp> // SegmentationLabel
 
 #include <pcl/point_cloud.h> // pcl::PointCloud
 #include <pcl/point_types.h> // pcl::PointXYZ
@@ -10,12 +10,13 @@
 #include <type_traits> // std::is_base_of_v
 #include <utility>     // std::forward
 
-namespace lidar_processing::lidar_segmentation
+namespace lidar_processing_lib::segmentation
 {
 class ISegmenter
 {
   public:
     using UniquePtr = std::unique_ptr<ISegmenter>;
+    using SegmentationLabel = data_types_lib::SegmentationLabel;
 
     /// @brief Deleted copy constructor.
     ISegmenter(const ISegmenter &) = delete;
@@ -54,6 +55,6 @@ class ISegmenter
     /// @param labels - Output segmentation labels (equal to the number of elements in the input cloud).
     virtual void run(const pcl::PointCloud<pcl::PointXYZI> &cloud, std::vector<SegmentationLabel> &labels) = 0;
 };
-} // namespace lidar_processing::lidar_segmentation
+} // namespace lidar_processing_lib::segmentation
 
-#endif // LIDAR_PROCESSING__LIDAR_SEGMENTATION__I_SEGMENTER_HPP
+#endif // LIDAR_PROCESSING_LIB__SEGMENTATION__I_SEGMENTER_HPP

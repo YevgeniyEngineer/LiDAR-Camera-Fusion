@@ -1,17 +1,17 @@
 <?xml version="1.0"?>
 <package format="3">
-    <name>data_processor_node</name>
+    <name>lidar_camera_fusion</name>
     <version>0.1.0</version>
-    <description>A ROS2 node for processing sensor data</description>
+    <description>Package for processing LiDAR and Camera data from Kitti</description>
 
     <maintainer email="yevgeniy.engineer@gmail.com">Yevgeniy Simonov</maintainer>
     <license>BSD 3-Clause</license>
 
     <buildtool_depend>ament_cmake</buildtool_depend>
 
-    <depend>rclcpp</depend>
-    <depend>sensor_msgs</depend>
-    <depend>geometry_msgs</depend>
-    <depend>visualization_msgs</depend>
+    <depend>sensor_data_publisher_node</depend>
 
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
 </package>

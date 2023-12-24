@@ -17,9 +17,6 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 
-# Local packages
-find_package(utilities_lib QUIET)
-
 # Executable
 add_executable(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_data_publisher_node.cpp
@@ -43,15 +40,19 @@ ament_target_dependencies(${PROJECT_NAME}
     sensor_msgs
 )
 
-ament_package()
-
-# Installation rules for the binaries
+# Install the executable (ROS2 convention)
 install(TARGETS ${PROJECT_NAME}
-    RUNTIME DESTINATION bin
+    DESTINATION lib/${PROJECT_NAME}
 )
 
 # Install the config
-install(DIRECTORY config/ DESTINATION config)
+install(DIRECTORY config
+    DESTINATION share/${PROJECT_NAME}
+)
 
 # Install the launch
-install(DIRECTORY launch/ DESTINATION launch)
+install(DIRECTORY launch
+    DESTINATION share/${PROJECT_NAME}
+)
+
+ament_package()

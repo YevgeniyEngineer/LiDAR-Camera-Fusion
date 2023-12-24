@@ -155,6 +155,7 @@ SensorDataPublisherNode::SensorDataPublisherNode() : rclcpp::Node{"sensor_data_p
         RCLCPP_INFO(this->get_logger(), "Exception: %s", ex.what());
     }
 
+    // Camera 2 publisher
     try
     {
         loadCache(this->get_parameter("camera_2.data_path").as_string(),
@@ -170,6 +171,7 @@ SensorDataPublisherNode::SensorDataPublisherNode() : rclcpp::Node{"sensor_data_p
         RCLCPP_INFO(this->get_logger(), "Exception: %s", ex.what());
     }
 
+    // Camera 3 publisher
     try
     {
         loadCache(this->get_parameter("camera_3.data_path").as_string(),
@@ -185,6 +187,7 @@ SensorDataPublisherNode::SensorDataPublisherNode() : rclcpp::Node{"sensor_data_p
         RCLCPP_INFO(this->get_logger(), "Exception: %s", ex.what());
     }
 
+    // Camera 4 publisher
     try
     {
         loadCache(this->get_parameter("camera_4.data_path").as_string(),

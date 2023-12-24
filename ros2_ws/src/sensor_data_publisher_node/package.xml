@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="3">
+    <name>sensor_data_publisher_node</name>
+    <version>0.1.0</version>
+    <description>A ROS2 node for reading Kitti data logs and publishing synchronized sensor data</description>
+
+    <maintainer email="yevgeniy.engineer@gmail.com">Yevgeniy Simonov</maintainer>
+    <license>BSD 3-Clause</license>
+
+    <buildtool_depend>ament_cmake</buildtool_depend>
+    <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+    <depend>rclcpp</depend>
+    <depend>sensor_msgs</depend>
+
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
+</package>

@@ -1,6 +1,6 @@
 // Local
-#include <data_types/cartesian_return.hpp>
-#include <utilities/file_operations.hpp>
+#include <data_types_lib/cartesian_return.hpp>
+#include <utilities_lib/file_operations.hpp>
 
 // ROS2
 #include <rclcpp/executors.hpp>             // rclcpp::spin
@@ -37,9 +37,7 @@ class SensorDataPublisherNode final : public rclcpp::Node
     using Image = sensor_msgs::msg::Image;
 
     /// @brief Constructor of the node.
-    /// @param data_paths containing a tuple of <sensor id, data path, topic name>
-    SensorDataPublisherNode(
-        const std::vector<std::tuple<std::int32_t, std::filesystem::path, std::string>> &data_paths);
+    SensorDataPublisherNode();
 
     /// @brief Default destructor.
     ~SensorDataPublisherNode() = default;
@@ -85,9 +83,7 @@ class SensorDataPublisherNode final : public rclcpp::Node
                            const std::int64_t elapsed_time_point);
 };
 
-SensorDataPublisherNode::SensorDataPublisherNode(
-    const std::vector<std::tuple<std::int32_t, std::filesystem::path, std::string>> &data_paths)
-    : rclcpp::Node{"sensor_data_publisher_node"}
+SensorDataPublisherNode::SensorDataPublisherNode() : rclcpp::Node{"sensor_data_publisher_node"}
 {
     // Declare parameters
     this->declare_parameter<std::string>("lidar.data_path");
@@ -203,43 +199,6 @@ SensorDataPublisherNode::SensorDataPublisherNode(
     {
         RCLCPP_INFO(this->get_logger(), "Exception: %s", ex.what());
     }
-
-    // for (const auto &[sensor_id, data_path, topic_name] : data_paths)
-    // {
-    //     switch (sensor_id)
-    //     {
-    //     case 0: {
-    //         loadCache(data_path, topic_name, point_cloud_info_);
-    //         point_cloud_info_.publisher = this->create_publisher<PointCloud2>(topic_name, qos);
-    //         std::cout << "Created lidar publisher\n";
-    //         break;
-    //     }
-    //     case 1: {
-    //         loadCache(data_path, topic_name, camera_1_info_);
-    //         camera_1_info_.publisher = this->create_publisher<Image>(topic_name, qos);
-    //         std::cout << "Created camera 1 publisher\n";
-    //         break;
-    //     }
-    //     case 2: {
-    //         loadCache(data_path, topic_name, camera_2_info_);
-    //         camera_2_info_.publisher = this->create_publisher<Image>(topic_name, qos);
-    //         std::cout << "Created camera 2 publisher\n";
-    //         break;
-    //     }
-    //     case 3: {
-    //         loadCache(data_path, topic_name, camera_3_info_);
-    //         camera_3_info_.publisher = this->create_publisher<Image>(topic_name, qos);
-    //         std::cout << "Created camera 3 publisher\n";
-    //         break;
-    //     }
-    //     case 4: {
-    //         loadCache(data_path, topic_name, camera_4_info_);
-    //         camera_4_info_.publisher = this->create_publisher<Image>(topic_name, qos);
-    //         std::cout << "Created camera 4 publisher\n";
-    //         break;
-    //     }
-    //     }
-    // }
 }
 
 void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, const std::string &topic_name,
@@ -254,7 +213,7 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
     // Load timestamps
     std::vector<std::int64_t> timestamps;
     const auto timestamps_path = data_path / "timestamps.txt";
-    utilities::readTimestampsFromTxtFile(timestamps_path, timestamps);
+    utilities_lib::readTimestampsFromTxtFile(timestamps_path, timestamps);
     timestamps.shrink_to_fit();
 
     // Check if timestamps were loaded
@@ -268,7 +227,7 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
         file_paths.reserve(timestamps.size());
 
         const auto data_folder = data_path / "data";
-        utilities::readFileNamesWithExtensionFromDirectory(data_folder, ".bin", file_paths);
+        utilities_lib::readFileNamesWithExtensionFromDirectory(data_folder, ".bin", file_paths);
 
         // Check the number of files match the number of timestamps
         if (file_paths.size() != timestamps.size())
@@ -279,10 +238,11 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
         // Fields to be used when populating messages
         // <field name, field offset, field type, field count>
         const std::vector<std::tuple<std::string, std::uint32_t, std::uint8_t, std::uint32_t>> fields = {
-            {"x", offsetof(data_types::CartesianReturn, x), sensor_msgs::msg::PointField::FLOAT32, 1},
-            {"y", offsetof(data_types::CartesianReturn, y), sensor_msgs::msg::PointField::FLOAT32, 1},
-            {"z", offsetof(data_types::CartesianReturn, z), sensor_msgs::msg::PointField::FLOAT32, 1},
-            {"intensity", offsetof(data_types::CartesianReturn, intensity), sensor_msgs::msg::PointField::FLOAT32, 1}};
+            {"x", offsetof(data_types_lib::CartesianReturn, x), sensor_msgs::msg::PointField::FLOAT32, 1},
+            {"y", offsetof(data_types_lib::CartesianReturn, y), sensor_msgs::msg::PointField::FLOAT32, 1},
+            {"z", offsetof(data_types_lib::CartesianReturn, z), sensor_msgs::msg::PointField::FLOAT32, 1},
+            {"intensity", offsetof(data_types_lib::CartesianReturn, intensity), sensor_msgs::msg::PointField::FLOAT32,
+             1}};
 
         // Aggregate messages into cache
         point_cloud_info_.stamped_messages.reserve(timestamps.size());
@@ -292,8 +252,8 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
             const auto &file_path = file_paths[message_number];
 
             // Read lidar cloud
-            std::vector<data_types::CartesianReturn> point_cloud_data;
-            utilities::loadPointCloudDataFromBinFile(file_path, point_cloud_data);
+            std::vector<data_types_lib::CartesianReturn> point_cloud_data;
+            utilities_lib::loadPointCloudDataFromBinFile(file_path, point_cloud_data);
 
             if (point_cloud_data.empty())
             {
@@ -306,8 +266,8 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
             point_cloud_message.height = 1;
             point_cloud_message.width = point_cloud_data.size();
             point_cloud_message.is_bigendian = false;
-            point_cloud_message.point_step = sizeof(data_types::CartesianReturn);
-            point_cloud_message.row_step = sizeof(data_types::CartesianReturn) * point_cloud_data.size();
+            point_cloud_message.point_step = sizeof(data_types_lib::CartesianReturn);
+            point_cloud_message.row_step = sizeof(data_types_lib::CartesianReturn) * point_cloud_data.size();
             point_cloud_message.is_dense = true;
             point_cloud_message.header.frame_id = topic_name;
 
@@ -329,9 +289,9 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
             }
 
             // Copy the point cloud data
-            point_cloud_message.data.resize(sizeof(data_types::CartesianReturn) * point_cloud_data.size());
+            point_cloud_message.data.resize(sizeof(data_types_lib::CartesianReturn) * point_cloud_data.size());
             std::memcpy(point_cloud_message.data.data(), point_cloud_data.data(),
-                        sizeof(data_types::CartesianReturn) * point_cloud_data.size());
+                        sizeof(data_types_lib::CartesianReturn) * point_cloud_data.size());
 
             // Add message to the message cache
             point_cloud_info_.stamped_messages.emplace_back(timestamp, std::move(point_cloud_message));
@@ -351,7 +311,7 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
     // Load timestamps
     std::vector<std::int64_t> timestamps;
     const auto timestamps_path = data_path / "timestamps.txt";
-    utilities::readTimestampsFromTxtFile(timestamps_path, timestamps);
+    utilities_lib::readTimestampsFromTxtFile(timestamps_path, timestamps);
     timestamps.shrink_to_fit();
 
     // Check if timestamps were loaded
@@ -365,7 +325,7 @@ void SensorDataPublisherNode::loadCache(const std::filesystem::path &data_path, 
         file_paths.reserve(timestamps.size());
 
         const auto data_folder = data_path / "data";
-        utilities::readFileNamesWithExtensionFromDirectory(data_folder, ".png", file_paths);
+        utilities_lib::readFileNamesWithExtensionFromDirectory(data_folder, ".png", file_paths);
 
         // Check the number of files match the number of timestamps
         if (file_paths.size() != timestamps.size())
@@ -539,40 +499,12 @@ void SensorDataPublisherNode::run()
 
 int main(int argc, char **argv)
 {
-    if (argc < 11)
-    {
-        std::cout << "Usage: " << argv[0]
-                  << " <lidar data path> <camera 1 data path> <camera 2 data path> <camera 3 data path> <camera 4 data "
-                     "path> <point cloud topic> <camera 1 topic> <camera 2 topic> <camera 3 topic> <camera 4 topic>"
-                  << std::endl;
-        return 1;
-    }
-
     rclcpp::init(argc, argv);
     rclcpp::install_signal_handlers();
 
-    const std::filesystem::path lidar_data_path{argv[1]};
-    const std::filesystem::path camera_1_data_path{argv[2]};
-    const std::filesystem::path camera_2_data_path{argv[3]};
-    const std::filesystem::path camera_3_data_path{argv[4]};
-    const std::filesystem::path camera_4_data_path{argv[5]};
-
-    const std::string point_cloud_topic{argv[6]};
-    const std::string camera_1_topic{argv[7]};
-    const std::string camera_2_topic{argv[8]};
-    const std::string camera_3_topic{argv[9]};
-    const std::string camera_4_topic{argv[10]};
-
     try
     {
-        const std::vector<std::tuple<std::int32_t, std::filesystem::path, std::string>> data_paths{
-            {0, lidar_data_path, point_cloud_topic},
-            {1, camera_1_data_path, camera_1_topic},
-            {2, camera_2_data_path, camera_2_topic},
-            {3, camera_3_data_path, camera_3_topic},
-            {4, camera_4_data_path, camera_4_topic}};
-
-        auto node = std::make_shared<SensorDataPublisherNode>(data_paths);
+        auto node = std::make_shared<SensorDataPublisherNode>();
         node->run();
     }
     catch (const std::exception &ex)

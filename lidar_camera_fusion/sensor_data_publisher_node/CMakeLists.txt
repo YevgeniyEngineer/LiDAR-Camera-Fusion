@@ -18,30 +18,40 @@ find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # Local packages
-find_package(utilities REQUIRED)
+find_package(utilities_lib QUIET)
 
-# To Read Sensor Data
+# Executable
 add_executable(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sensor_data_publisher_node.cpp
 )
+
+# Includes
 target_include_directories(${PROJECT_NAME}
     PRIVATE
     ${OpenCV_INCLUDE_DIRS}
 )
+
+# Libraries
 target_link_libraries(${PROJECT_NAME}
     ${rclcpp_LIBRARIES}
     ${OpenCV_LIBS}
-    utilities
+    utilities_lib
 )
+
 ament_target_dependencies(${PROJECT_NAME}
     rclcpp
     sensor_msgs
 )
+
 ament_package()
 
-# Package
-ament_auto_package(
-    INSTALL_TO_SHARE
-    config
-    launch
+# Installation rules for the binaries
+install(TARGETS ${PROJECT_NAME}
+    RUNTIME DESTINATION bin
 )
+
+# Install the config
+install(DIRECTORY config/ DESTINATION config)
+
+# Install the launch
+install(DIRECTORY launch/ DESTINATION launch)

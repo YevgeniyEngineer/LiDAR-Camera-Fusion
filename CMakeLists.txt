@@ -10,7 +10,8 @@ add_subdirectory(./libraries/utilities_lib)
 add_subdirectory(./libraries/lidar_processing_lib)
 
 # # Nodes
-# add_subdirectory(./sensor_data_publisher_node)
+add_subdirectory(./lidar_camera_fusion/sensor_data_publisher_node)
+
 # add_subdirectory(./data_processor_node)
 
 # Include the ROS2 workspace

@@ -42,6 +42,22 @@ target_link_libraries(${PROJECT_NAME}
     data_types_lib
 )
 
+# Compiler options for safety and best practices
+target_compile_options(${PROJECT_NAME} PRIVATE
+
+    # Enable all warnings
+    -Wall
+
+    # Enable extra warnings
+    -Wextra
+
+    # Ensure standards-compliant code
+    -Wpedantic
+
+    # Treat warnings as errors
+    -Werror
+)
+
 # Installation rules for the library
 install(TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}Targets
@@ -96,32 +112,3 @@ if(BUILD_TESTS)
     include(GoogleTest)
     gtest_discover_tests(test_${PROJECT_NAME})
 endif()
-
-# if(BUILD_TESTS)
-# # Find GTest
-# find_package(GTest REQUIRED)
-# enable_testing()
-
-# # Glob all test source files
-# file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp")
-
-# # Create an executable for each test source file
-# foreach(TEST_SOURCE ${TEST_SOURCES})
-# # Get a human-readable name for the test executable
-# get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
-
-# # Add test executable
-# add_executable(${TEST_NAME} ${TEST_SOURCE})
-
-# # Link libraries
-# target_link_libraries(${TEST_NAME}
-# PRIVATE
-# ${PROJECT_NAME}
-# GTest::gtest_main
-# )
-
-# # Discover test cases
-# include(GoogleTest)
-# gtest_discover_tests(${TEST_NAME})
-# endforeach()
-# endif()

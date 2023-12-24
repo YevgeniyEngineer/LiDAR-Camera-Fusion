@@ -1,0 +1,31 @@
+sensor_data_publisher_node:
+  ros__parameters:
+    lidar:
+      # Location of velodyne_points folder from Kitti
+      data_path: "/home/yevgeniy/Documents/GitHub/LiDAR-Camera-Fusion/a_kitti_dataset/2011_09_26_drive_0013_sync/velodyne_points"
+      topic: "lidar"
+      sensor_id: 0
+  
+    camera_1:
+      # Location of image_00 folder from Kitti
+      data_path: "/home/yevgeniy/Documents/GitHub/LiDAR-Camera-Fusion/a_kitti_dataset/2011_09_26_drive_0013_sync/image_00"
+      topic: "camera_1"
+      sensor_id: 1
+
+    camera_2:
+      # Location of image_01 folder from Kitti
+      data_path: "/home/yevgeniy/Documents/GitHub/LiDAR-Camera-Fusion/a_kitti_dataset/2011_09_26_drive_0013_sync/image_01"
+      topic: "camera_2"
+      sensor_id: 2
+
+    camera_3:
+      # Location of image_02 folder from Kitti
+      data_path: "/home/yevgeniy/Documents/GitHub/LiDAR-Camera-Fusion/a_kitti_dataset/2011_09_26_drive_0013_sync/image_02"
+      topic: "camera_3"
+      sensor_id: 3
+
+    camera_4:
+      # Location of image_03 folder from Kitti
+      data_path: "/home/yevgeniy/Documents/GitHub/LiDAR-Camera-Fusion/a_kitti_dataset/2011_09_26_drive_0013_sync/image_03"
+      topic: "camera_4"
+      sensor_id: 4

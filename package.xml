@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="3">
+    <name>lidar_camera_fusion</name>
+    <version>0.1.0</version>
+    <description>Package for processing LiDAR and Camera data from Kitti</description>
+
+    <maintainer email="yevgeniy.engineer@gmail.com">Yevgeniy Simonov</maintainer>
+    <license>BSD 3-Clause</license>
+
+    <buildtool_depend>ament_cmake</buildtool_depend>
+
+    <depend>sensor_data_publisher_node</depend>
+
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
+</package>

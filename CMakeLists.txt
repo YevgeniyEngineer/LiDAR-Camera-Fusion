@@ -4,11 +4,27 @@ project(lidar_camera_fusion)
 
 set(BUILD_TESTS TRUE)
 
-# Libraries
-add_subdirectory(./data_types)
-add_subdirectory(./utilities)
-add_subdirectory(./lidar_processing)
+# ROS
+find_package(ament_cmake REQUIRED)
 
-# Nodes
-add_subdirectory(./sensor_data_publisher_node)
-add_subdirectory(./data_processor_node)
+# Libraries
+add_subdirectory(./libraries/data_types_lib)
+add_subdirectory(./libraries/utilities_lib)
+add_subdirectory(./libraries/lidar_processing_lib)
+
+# # Nodes
+add_subdirectory(./nodes/sensor_data_publisher_node)
+
+# add_subdirectory(./data_processor_node)
+
+# Install the launch
+install(DIRECTORY launch
+    DESTINATION share/${PROJECT_NAME}
+)
+
+# Install the visualisation
+install(DIRECTORY visualisation
+    DESTINATION share/${PROJECT_NAME}
+)
+
+ament_package()

@@ -2,9 +2,9 @@
 
 namespace lidar_processing_lib::segmentation
 {
-RansacSegmenter::RansacSegmenter(float orthogonal_distance_threshold, std::uint32_t number_of_iterations,
-                                 std::size_t thread_count)
-    : ISegmenter(), orthogonal_distance_threshold_(orthogonal_distance_threshold),
+RansacSegmenter::RansacSegmenter(float height_offset, float orthogonal_distance_threshold,
+                                 std::uint32_t number_of_iterations, std::size_t thread_count)
+    : ISegmenter(), height_offset_(height_offset), orthogonal_distance_threshold_(orthogonal_distance_threshold),
       number_of_iterations_(number_of_iterations), thread_pool_(thread_count), futures_(thread_count)
 {
 }

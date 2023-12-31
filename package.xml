@@ -10,6 +10,7 @@
     <buildtool_depend>ament_cmake</buildtool_depend>
 
     <depend>sensor_data_publisher_node</depend>
+    <depend>lidar_data_processor_node</depend>
 
     <export>
         <build_type>ament_cmake</build_type>

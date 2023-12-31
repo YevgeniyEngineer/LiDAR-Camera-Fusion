@@ -11,8 +11,8 @@ namespace lidar_processing_lib::segmentation
 class RansacSegmenter : public ISegmenter
 {
   public:
-    explicit RansacSegmenter(float orthogonal_distance_threshold = 0.1F, std::uint32_t number_of_iterations = 100U,
-                             std::size_t thread_count = 8U);
+    explicit RansacSegmenter(float height_offset, float orthogonal_distance_threshold = 0.1F,
+                             std::uint32_t number_of_iterations = 100U, std::size_t thread_count = 8U);
 
     ~RansacSegmenter();
 
@@ -20,6 +20,7 @@ class RansacSegmenter : public ISegmenter
     void run(const pcl::PointCloud<pcl::PointXYZI> &cloud, std::vector<SegmentationLabel> &labels) override;
 
   private:
+    float height_offset_;
     float orthogonal_distance_threshold_;
     std::uint32_t number_of_iterations_;
 

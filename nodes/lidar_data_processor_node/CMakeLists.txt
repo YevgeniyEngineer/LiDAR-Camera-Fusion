@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
 # Project name
-project(data_processor_node)
+project(lidar_data_processor_node)
 
 # set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -20,7 +20,7 @@ find_package(visualization_msgs REQUIRED)
 
 # target build rules
 add_executable(${PROJECT_NAME}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/data_processor_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/lidar_data_processor_node.cpp
 )
 
 # Libraries

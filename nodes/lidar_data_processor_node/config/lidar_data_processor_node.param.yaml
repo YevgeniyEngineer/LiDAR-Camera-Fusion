@@ -1,0 +1,33 @@
+lidar_data_processor_node:
+  ros__parameters:
+    # subscription topics
+    subscription_topics:
+      input_cloud: "lidar"
+    # publication topics
+    publication_topics:
+      segmentation:
+        unknown_cloud: "lidar/segmentation/unknown"
+        ground_cloud: "lidar/segmentation/ground"
+        obstacle_cloud: "lidar/segmentation/obstacle"
+      clustering:
+        clustered_cloud: "lidar/clustering"
+      polygonization:
+        polygonized_cloud: "lidar/polygonization"
+    # processing configuration
+    processing_configuration:
+      # z-offset of the LiDAR w.r.t. ground level
+      height_offset: 1.73
+      # filter bounding box corresponding to the contour of the vehicle w.r.t. lidar frame
+      bounding_box:
+        # bounding box is specified in counterclockwise direction, from front right corner
+        # the below are coordinate pairs [x1, y1, x2, y2, x3, y3, x4, y4]
+        [2.79, 0.8, 2.79, -0.8, -1.62, -0.8, -1.62, 0.8]
+      # segmentation configuration
+      segmentation:
+        # algorithm to be used for segmentation
+        algorithm: "ransac"
+        # parameters used by RANSAC
+        ransac:
+          orthogonal_distance_threshold: 0.1
+          number_of_iterations: 150
+          thread_count: 8

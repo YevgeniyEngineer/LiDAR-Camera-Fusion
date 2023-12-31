@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-    <name>data_processor_node</name>
+    <name>lidar_data_processor_node</name>
     <version>0.1.0</version>
     <description>A ROS2 node for processing sensor data</description>
 

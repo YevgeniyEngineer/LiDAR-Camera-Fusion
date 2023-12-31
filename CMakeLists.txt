@@ -14,7 +14,7 @@ add_subdirectory(./libraries/lidar_processing_lib)
 
 # # Nodes
 add_subdirectory(./nodes/sensor_data_publisher_node)
-add_subdirectory(./nodes/data_processor_node)
+add_subdirectory(./nodes/lidar_data_processor_node)
 
 # Install the launch
 install(DIRECTORY launch

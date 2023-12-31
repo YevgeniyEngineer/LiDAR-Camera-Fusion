@@ -18,20 +18,37 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
-# Local packages
-# find_package(lidar_segmentation REQUIRED)
-
 # target build rules
 add_executable(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/src/data_processor_node.cpp
 )
+
+# Libraries
+target_link_libraries(${PROJECT_NAME}
+    ${rclcpp_LIBRARIES}
+    lidar_processing_lib
+)
+
 ament_target_dependencies(${PROJECT_NAME}
     rclcpp
     sensor_msgs
     geometry_msgs
     visualization_msgs
 )
-target_link_libraries(${PROJECT_NAME}
-    lidar_segmentation
+
+# Install the executable (ROS2 convention)
+install(TARGETS ${PROJECT_NAME}
+    DESTINATION lib/${PROJECT_NAME}
 )
+
+# Install the config
+install(DIRECTORY config
+    DESTINATION share/${PROJECT_NAME}
+)
+
+# Install the launch
+install(DIRECTORY launch
+    DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package()

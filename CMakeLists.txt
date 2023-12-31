@@ -14,16 +14,15 @@ add_subdirectory(./libraries/lidar_processing_lib)
 
 # # Nodes
 add_subdirectory(./nodes/sensor_data_publisher_node)
-
-# add_subdirectory(./data_processor_node)
+add_subdirectory(./nodes/data_processor_node)
 
 # Install the launch
 install(DIRECTORY launch
     DESTINATION share/${PROJECT_NAME}
 )
 
-# Install the visualisation
-install(DIRECTORY visualisation
+# Install the visualization
+install(DIRECTORY visualization
     DESTINATION share/${PROJECT_NAME}
 )
 

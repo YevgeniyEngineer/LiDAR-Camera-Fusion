@@ -1,4 +1,4 @@
-// Local
+/// Local
 #include <data_types_lib/cartesian_return.hpp>
 #include <utilities_lib/file_operations.hpp>
 
@@ -35,6 +35,12 @@ class SensorDataPublisherNode final : public rclcpp::Node
   public:
     using PointCloud2 = sensor_msgs::msg::PointCloud2;
     using Image = sensor_msgs::msg::Image;
+
+    // Copy and move operations are not allowed.
+    SensorDataPublisherNode(const SensorDataPublisherNode &) = delete;
+    SensorDataPublisherNode(SensorDataPublisherNode &&) = delete;
+    SensorDataPublisherNode &operator=(const SensorDataPublisherNode &) = delete;
+    SensorDataPublisherNode &operator=(SensorDataPublisherNode &&) = delete;
 
     /// @brief Constructor of the node.
     SensorDataPublisherNode();

@@ -64,22 +64,25 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
     for (std::uint32_t iteration = 0U; iteration < number_of_iterations_; ++iteration)
     {
         // Choose 3 random points
-        const std::uint32_t point_1_index = distribution(generator);
 
+        // Select first point
+        const std::uint32_t point_1_index = distribution(generator);
+        const auto &point_1 = cloud.points[point_1_index];
+
+        // Select second point
         std::uint32_t point_2_index = distribution(generator);
         while (point_1_index == point_2_index)
         {
             point_2_index = distribution(generator);
         }
+        const auto &point_2 = cloud.points[point_2_index];
 
+        // Select third point
         std::uint32_t point_3_index = distribution(generator);
         while ((point_1_index == point_3_index) && (point_2_index == point_3_index))
         {
             point_3_index = distribution(generator);
         }
-
-        const auto &point_1 = cloud.points[point_1_index];
-        const auto &point_2 = cloud.points[point_2_index];
         const auto &point_3 = cloud.points[point_3_index];
 
         // Calculate a plane defined by three points
@@ -90,11 +93,17 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
         float normal_z =
             ((point_2.x - point_1.x) * (point_3.y - point_1.y)) - ((point_2.y - point_1.y) * (point_3.x - point_1.x));
 
-        // normalize plane coefficients
-        const float normalization =
-            1.0F / std::sqrt((normal_x * normal_x) + (normal_y * normal_y) + (normal_z * normal_z));
+        // Calculate normalization
+        const float denominator = std::sqrt((normal_x * normal_x) + (normal_y * normal_y) + (normal_z * normal_z));
 
-        // normalize
+        // Check that denominator is not too small
+        if (denominator < 1.0e-4F)
+        {
+            continue;
+        }
+        const float normalization = 1.0F / denominator;
+
+        // Normalize plane coefficients
         normal_x *= normalization;
         normal_y *= normalization;
         normal_z *= normalization;

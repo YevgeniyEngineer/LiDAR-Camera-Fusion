@@ -23,7 +23,7 @@ def generate_launch_description():
 
     # RViz
     package_directory = os.path.join(
-        get_package_share_directory("lidar_camera_fusion"), "visualisation"
+        get_package_share_directory("lidar_camera_fusion"), "visualization"
     )
 
     config_file = os.path.join(package_directory, "rviz2_config.rviz")

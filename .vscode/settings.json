@@ -88,5 +88,8 @@
     "cmake.configureOnOpen": true,
     "clangd.arguments": [
         "-header-insertion=never"
+    ],
+    "cSpell.words": [
+        "Clusterer"
     ]
 }

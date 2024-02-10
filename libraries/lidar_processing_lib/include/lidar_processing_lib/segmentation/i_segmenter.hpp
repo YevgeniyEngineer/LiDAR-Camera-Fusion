@@ -36,7 +36,7 @@ class ISegmenter
     /// @brief Virtual destructor.
     virtual ~ISegmenter() = default;
 
-    /// @brief Templated static create method.
+    /// @brief Templated static factory method.
     template <typename DerivedSegmenter, typename... Args> static UniquePtr createUnique(Args &&...args)
     {
         static_assert(std::is_base_of_v<ISegmenter, DerivedSegmenter>,

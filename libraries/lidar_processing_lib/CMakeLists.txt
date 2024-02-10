@@ -21,6 +21,8 @@ set(SOURCE_FILES
 set(HEADER_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/lidar_processing_lib/segmentation/i_segmenter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/lidar_processing_lib/segmentation/ransac_segmenter.hpp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/lidar_processing_lib/clustering/i_clusterer.hpp
 )
 
 # Create shared library

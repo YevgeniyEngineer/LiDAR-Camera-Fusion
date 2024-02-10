@@ -176,7 +176,7 @@ void RansacSegmenter::refineClassificationThroughPolarGridTraversal(std::vector<
                     const float dr = std::sqrt((dx * dx) + (dy * dy));
                     const float gradient = dz / dr;
 
-                    if ((std::fabs(gradient) < 0.15F) && (dr < 5.0F))
+                    if ((std::fabs(gradient) < 0.2F) && (dr < 8.0F))
                     {
                         point.label = SegmentationLabel::GROUND;
                         last_known_ground_point = &point;
@@ -346,7 +346,7 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
         normal_z *= normalization;
 
         // Constrain plane
-        if (normal_z < max_plane_cosine_angle)
+        if (std::fabs(normal_z) < max_plane_cosine_angle)
         {
             continue;
         }

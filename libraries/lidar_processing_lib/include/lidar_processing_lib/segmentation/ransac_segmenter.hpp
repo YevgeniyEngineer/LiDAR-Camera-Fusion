@@ -3,8 +3,10 @@
 
 #include "i_segmenter.hpp"               // ISegmenter
 #include <array>                         // std::array
+#include <cmath>                         // M_PI
 #include <random>                        // std::random_device, std::mt19937, std::uniform_int_distribution
 #include <utilities_lib/thread_pool.hpp> // ThreadPool
+#include <vector>                        // std::vector
 
 namespace lidar_processing_lib::segmentation
 {
@@ -12,7 +14,8 @@ class RansacSegmenter : public ISegmenter
 {
   public:
     explicit RansacSegmenter(float height_offset, float orthogonal_distance_threshold = 0.1F,
-                             std::uint32_t number_of_iterations = 100U, std::size_t thread_count = 8U);
+                             std::uint32_t number_of_iterations = 100U, float max_plane_inclination_deg = 25.0F,
+                             float consideration_radius = 30.0F, float consideration_height = 1.0);
 
     ~RansacSegmenter();
 
@@ -23,9 +26,11 @@ class RansacSegmenter : public ISegmenter
     float height_offset_;
     float orthogonal_distance_threshold_;
     std::uint32_t number_of_iterations_;
+    float max_plane_inclination_deg_;
+    float consideration_radius_;
+    float consideration_height_;
 
-    utilities_lib::ThreadPool thread_pool_;
-    std::vector<std::future<std::uint32_t>> futures_;
+    std::vector<pcl::PointXYZ> processing_points_;
 
     template <typename PointT>
     void segment(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels);
@@ -35,17 +40,31 @@ template <typename PointT>
 void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels)
 {
     // Set all labels to unknown
-    labels.resize(cloud.points.size());
-    for (std::uint32_t i = 0U; i < cloud.points.size(); ++i)
-    {
-        labels[i] = SegmentationLabel::UNKNOWN;
-    }
+    labels.assign(cloud.points.size(), SegmentationLabel::UNKNOWN);
 
     // If cloud contains less than 3 points
     if (cloud.points.size() < 3U)
     {
         return;
     }
+
+    // Copy points from the cloud to the processing points
+    processing_points_.clear();
+    const float consideration_radius_squared = consideration_radius_ * consideration_radius_;
+    for (const auto &point : cloud.points)
+    {
+        // Point shifted to ground level
+        if ((std::fabs(point.z + height_offset_) <= consideration_height_) &&
+            ((point.x * point.x + point.y * point.y) < consideration_radius_squared))
+        {
+            processing_points_.emplace_back(point.x, point.y, point.z);
+        }
+    }
+
+    // Set pivot constraints
+    const PointT point_1{0.0F, 0.0F, -height_offset_};
+    const float max_plane_inclination_rad = max_plane_inclination_deg_ * M_PIf32 / 180.0F;
+    const float max_plane_cosine_angle = std::cos(max_plane_inclination_rad);
 
     // Plane coefficients
     float a = 0.0F;
@@ -55,36 +74,22 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
 
     // For index generation
     std::mt19937 generator(42);
-    std::uniform_int_distribution<std::uint32_t> distribution(0, cloud.points.size() - 1U);
-
-    // Calculate chunk size to allocate for each thread
-    const std::uint32_t chunk_size = cloud.points.size() / thread_pool_.threadCount();
+    std::uniform_int_distribution<std::uint32_t> distribution(0, processing_points_.size() - 1U);
 
     // RANSAC
     std::uint32_t best_inlier_count = 0U;
     for (std::uint32_t iteration = 0U; iteration < number_of_iterations_; ++iteration)
     {
-        // Choose 3 random points
+        // Choose 2 random points
+        const std::uint32_t point_2_index = distribution(generator);
+        const auto &point_2 = processing_points_[point_2_index];
 
-        // Select first point
-        const std::uint32_t point_1_index = distribution(generator);
-        const auto &point_1 = cloud.points[point_1_index];
-
-        // Select second point
-        std::uint32_t point_2_index = distribution(generator);
-        while (point_1_index == point_2_index)
-        {
-            point_2_index = distribution(generator);
-        }
-        const auto &point_2 = cloud.points[point_2_index];
-
-        // Select third point
         std::uint32_t point_3_index = distribution(generator);
-        while ((point_1_index == point_3_index) && (point_2_index == point_3_index))
+        while (point_2_index == point_3_index)
         {
             point_3_index = distribution(generator);
         }
-        const auto &point_3 = cloud.points[point_3_index];
+        const auto &point_3 = processing_points_[point_3_index];
 
         // Calculate a plane defined by three points
         float normal_x =
@@ -105,44 +110,31 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
         const float normalization = 1.0F / denominator;
 
         // Normalize plane coefficients
+        normal_z *= normalization;
+
+        // Constrain plane
+        if (normal_z < max_plane_cosine_angle)
+        {
+            continue;
+        }
+
         normal_x *= normalization;
         normal_y *= normalization;
-        normal_z *= normalization;
 
         const float plane_d = (normal_x * point_1.x) + (normal_y * point_1.y) + (normal_z * point_1.z);
 
-        // Parallel inlier counting
-        // Assign work to each thread
-        for (std::size_t t = 0U; t < thread_pool_.threadCount(); ++t)
-        {
-            futures_[t] = thread_pool_.enqueue(
-                [this, &cloud, chunk_size, normal_x, normal_y, normal_z, plane_d, t]() -> std::uint32_t {
-                    std::uint32_t local_inlier_count = 0U;
-
-                    const std::size_t start_index = t * chunk_size;
-                    const std::size_t stop_index = std::min((t + 1) * chunk_size, cloud.points.size());
-
-                    for (std::size_t j = start_index; j < stop_index; ++j)
-                    {
-                        const float orthogonal_distance =
-                            std::fabs((normal_x * cloud.points[j].x) + (normal_y * cloud.points[j].y) +
-                                      (normal_z * cloud.points[j].z) - plane_d);
-
-                        if (orthogonal_distance < orthogonal_distance_threshold_)
-                        {
-                            ++local_inlier_count;
-                        }
-                    }
-
-                    return local_inlier_count;
-                });
-        }
-
-        // Collect results from all threads
+        // Count inlier points
         std::uint32_t inlier_count = 0U;
-        for (std::size_t t = 0U; t < thread_pool_.threadCount(); ++t)
+        for (std::size_t i = 0U; i < processing_points_.size(); ++i)
         {
-            inlier_count += futures_[t].get();
+            const float orthogonal_distance =
+                std::fabs((normal_x * processing_points_[i].x) + (normal_y * processing_points_[i].y) +
+                          (normal_z * processing_points_[i].z) - plane_d);
+
+            if (orthogonal_distance < orthogonal_distance_threshold_)
+            {
+                ++inlier_count;
+            }
         }
 
         // If the plane is best so far, update the plane coefficients
@@ -156,37 +148,20 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
         }
     }
 
-    // Update labels
-    for (std::size_t t = 0U; t < thread_pool_.threadCount(); ++t)
+    // Decide which points are GROUND and which points are NON-GROUND
+    for (std::size_t i = 0U; i < cloud.points.size(); ++i)
     {
-        futures_[t] = thread_pool_.enqueue([this, &cloud, &labels, chunk_size, a, b, c, d, t]() -> std::uint32_t {
-            const std::size_t start_index = t * chunk_size;
-            const std::size_t stop_index = std::min((t + 1) * chunk_size, cloud.points.size());
+        const float orthogonal_distance =
+            std::fabs((a * cloud.points[i].x) + (b * cloud.points[i].y) + (c * cloud.points[i].z) - d);
 
-            for (std::size_t j = start_index; j < stop_index; ++j)
-            {
-                const float orthogonal_distance =
-                    std::fabs((a * cloud.points[j].x) + (b * cloud.points[j].y) + (c * cloud.points[j].z) - d);
-
-                if (orthogonal_distance < orthogonal_distance_threshold_)
-                {
-                    labels[j] = SegmentationLabel::GROUND;
-                }
-                else
-                {
-                    labels[j] = SegmentationLabel::OBSTACLE;
-                }
-            }
-
-            // Note this return is just a placeholder
-            return 0U;
-        });
-    }
-
-    // Wait for results
-    for (auto &future : futures_)
-    {
-        future.get();
+        if (orthogonal_distance < orthogonal_distance_threshold_)
+        {
+            labels[i] = SegmentationLabel::GROUND;
+        }
+        else
+        {
+            labels[i] = SegmentationLabel::OBSTACLE;
+        }
     }
 }
 } // namespace lidar_processing_lib::segmentation

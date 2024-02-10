@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Re-build first
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
 # Location of script's directory
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 

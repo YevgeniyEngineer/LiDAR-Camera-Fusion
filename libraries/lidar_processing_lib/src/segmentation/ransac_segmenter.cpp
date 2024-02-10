@@ -3,9 +3,11 @@
 namespace lidar_processing_lib::segmentation
 {
 RansacSegmenter::RansacSegmenter(float height_offset, float orthogonal_distance_threshold,
-                                 std::uint32_t number_of_iterations, std::size_t thread_count)
+                                 std::uint32_t number_of_iterations, float max_plane_inclination_deg,
+                                 float consideration_radius, float consideration_height)
     : ISegmenter(), height_offset_(height_offset), orthogonal_distance_threshold_(orthogonal_distance_threshold),
-      number_of_iterations_(number_of_iterations), thread_pool_(thread_count), futures_(thread_count)
+      number_of_iterations_(number_of_iterations), max_plane_inclination_deg_(max_plane_inclination_deg),
+      consideration_radius_(consideration_radius), consideration_height_(consideration_height)
 {
 }
 

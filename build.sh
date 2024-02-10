@@ -1,3 +1,3 @@
 #!/bin/bash
 
-colcon build
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo

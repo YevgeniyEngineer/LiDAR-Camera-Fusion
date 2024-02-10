@@ -222,8 +222,7 @@ LidarDataProcessorNode::LidarDataProcessorNode() : rclcpp::Node{"data_processor_
             lidar_processing_lib::segmentation::RansacSegmenter>(
             processing_configuration_.height_offset,
             processing_configuration_.segmentation.ransac.orthogonal_distance_threshold,
-            processing_configuration_.segmentation.ransac.number_of_iterations,
-            processing_configuration_.segmentation.ransac.thread_count);
+            processing_configuration_.segmentation.ransac.number_of_iterations);
     }
 }
 

@@ -38,7 +38,7 @@ class RansacSegmenter : public ISegmenter
     explicit RansacSegmenter(float height_offset, float orthogonal_distance_threshold = 0.1F,
                              std::uint32_t number_of_iterations = 100U, float max_plane_inclination_deg = 25.0F,
                              float consideration_radius = 30.0F, float consideration_height = 0.8F,
-                             float classification_radius = 70.0F);
+                             float classification_radius = 65.0F);
 
     ~RansacSegmenter();
 
@@ -100,14 +100,14 @@ void RansacSegmenter::embedPointCloudIntoPolarGrid(const pcl::PointCloud<PointT>
     // Embed points into each channel
     for (std::uint32_t i = 0U; i < cloud.points.size(); ++i)
     {
-        // if (labels[i] != SegmentationLabel::UNKNOWN)
+        if (labels[i] != SegmentationLabel::UNKNOWN)
         {
             const auto &point = cloud.points[i];
 
             // Calculate distance
             const float distance = std::sqrt((point.x * point.x) + (point.y * point.y));
 
-            // if (distance < MAX_CELL_RADIUS)
+            if (distance < MAX_CELL_RADIUS)
             {
                 // Convert azimuth angle to degrees and shift range to [0, 360) OR [0, 2 * PI]
                 float azimuth_rad = utilities_lib::atan2Approx(point.y, point.x);

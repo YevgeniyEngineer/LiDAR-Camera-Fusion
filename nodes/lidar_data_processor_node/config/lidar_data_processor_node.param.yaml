@@ -28,6 +28,6 @@ lidar_data_processor_node:
         algorithm: "ransac"
         # parameters used by RANSAC
         ransac:
-          orthogonal_distance_threshold: 0.25
+          orthogonal_distance_threshold: 0.3
           number_of_iterations: 150
           thread_count: 8

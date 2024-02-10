@@ -35,3 +35,7 @@ Launch data processing pipelines and visualization: `./launch.sh`
 The node reads sensor data and publishes synchronously
 
 ![complete_video](https://github.com/YevgeniyEngineer/LiDAR-Camera-Fusion/blob/main/images/visualization.gif)
+
+## Segmentation
+
+![complete_video](https://github.com/YevgeniyEngineer/LiDAR-Camera-Fusion/blob/main/images/example_segmentation.gif)

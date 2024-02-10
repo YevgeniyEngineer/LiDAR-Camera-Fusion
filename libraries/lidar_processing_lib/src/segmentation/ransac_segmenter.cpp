@@ -9,6 +9,7 @@ RansacSegmenter::RansacSegmenter(float height_offset, float orthogonal_distance_
       number_of_iterations_(number_of_iterations), max_plane_inclination_deg_(max_plane_inclination_deg),
       consideration_radius_(consideration_radius), consideration_height_(consideration_height)
 {
+    processing_points_.reserve(200'000U);
 }
 
 RansacSegmenter::~RansacSegmenter()

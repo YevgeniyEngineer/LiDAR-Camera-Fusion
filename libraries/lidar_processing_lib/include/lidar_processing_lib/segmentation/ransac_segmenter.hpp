@@ -15,7 +15,7 @@ class RansacSegmenter : public ISegmenter
   public:
     explicit RansacSegmenter(float height_offset, float orthogonal_distance_threshold = 0.1F,
                              std::uint32_t number_of_iterations = 100U, float max_plane_inclination_deg = 25.0F,
-                             float consideration_radius = 30.0F, float consideration_height = 1.0);
+                             float consideration_radius = 30.0F, float consideration_height = 0.8F);
 
     ~RansacSegmenter();
 
@@ -125,11 +125,10 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
 
         // Count inlier points
         std::uint32_t inlier_count = 0U;
-        for (std::size_t i = 0U; i < processing_points_.size(); ++i)
+        for (const auto &point : processing_points_)
         {
             const float orthogonal_distance =
-                std::fabs((normal_x * processing_points_[i].x) + (normal_y * processing_points_[i].y) +
-                          (normal_z * processing_points_[i].z) - plane_d);
+                std::fabs((normal_x * point.x) + (normal_y * point.y) + (normal_z * point.z) - plane_d);
 
             if (orthogonal_distance < orthogonal_distance_threshold_)
             {

@@ -19,7 +19,7 @@ class RansacSegmenter : public ISegmenter
     // Polar prid parameters
     // channel: azimuth partition
     // cell: radial partition
-    static constexpr float CHANNEL_RESOLUTION_DEG = 0.5F;
+    static constexpr float CHANNEL_RESOLUTION_DEG = 1.0F;
     static constexpr float CELL_RESOLUTION_M = 1.5F;
     static constexpr float MAX_CELL_RADIUS = 300.0F;
 
@@ -38,7 +38,7 @@ class RansacSegmenter : public ISegmenter
     explicit RansacSegmenter(float height_offset, float orthogonal_distance_threshold = 0.1F,
                              std::uint32_t number_of_iterations = 100U, float max_plane_inclination_deg = 25.0F,
                              float consideration_radius = 30.0F, float consideration_height = 0.8F,
-                             float classification_radius = 50.0F);
+                             float classification_radius = 70.0F);
 
     ~RansacSegmenter();
 
@@ -80,6 +80,8 @@ class RansacSegmenter : public ISegmenter
 
     template <typename PointT>
     void segment(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels);
+
+    void refineClassificationThroughPolarGridTraversal(std::vector<SegmentationLabel> &labels);
 };
 
 template <typename PointT>
@@ -98,28 +100,32 @@ void RansacSegmenter::embedPointCloudIntoPolarGrid(const pcl::PointCloud<PointT>
     // Embed points into each channel
     for (std::uint32_t i = 0U; i < cloud.points.size(); ++i)
     {
-        const auto &point = cloud.points[i];
-
-        // Calculate distance
-        const float distance = std::sqrt((point.x * point.x) + (point.y * point.y));
-
-        if (distance < MAX_CELL_RADIUS)
+        // if (labels[i] != SegmentationLabel::UNKNOWN)
         {
-            // Convert azimuth angle to degrees and shift range to [0, 360) OR [0, 2 * PI]
-            float azimuth_rad = utilities_lib::atan2Approx(point.y, point.x);
-            azimuth_rad -= 2.0 * M_PI * std::floor(azimuth_rad / M_PI);
+            const auto &point = cloud.points[i];
 
-            // Determine channel index using floor division
-            const std::uint32_t channel_index = static_cast<std::uint32_t>(
-                std::max(azimuth_rad / CHANNEL_RESOLUTION_RAD, std::numeric_limits<float>::epsilon()));
+            // Calculate distance
+            const float distance = std::sqrt((point.x * point.x) + (point.y * point.y));
 
-            // Determine bin index
-            const std::uint32_t cell_index = std::min(
-                static_cast<std::uint32_t>(std::max(MAX_CELL_RADIUS / distance, std::numeric_limits<float>::epsilon())),
-                (NUMBER_OF_CELLS - 1U));
+            // if (distance < MAX_CELL_RADIUS)
+            {
+                // Convert azimuth angle to degrees and shift range to [0, 360) OR [0, 2 * PI]
+                float azimuth_rad = utilities_lib::atan2Approx(point.y, point.x);
+                azimuth_rad -= 2.0 * M_PI * std::floor(azimuth_rad / M_PI);
 
-            // Embed point into polar grid channel and cell
-            polar_grid_[channel_index][cell_index].emplace_back(point.x, point.y, point.z, i, labels[i]);
+                // Determine channel index using floor division
+                const std::uint32_t channel_index = static_cast<std::uint32_t>(
+                    std::max(azimuth_rad / CHANNEL_RESOLUTION_RAD, std::numeric_limits<float>::epsilon()));
+
+                // Determine bin index
+                const std::uint32_t cell_index =
+                    std::min(static_cast<std::uint32_t>(
+                                 std::max(MAX_CELL_RADIUS / distance, std::numeric_limits<float>::epsilon())),
+                             (NUMBER_OF_CELLS - 1U));
+
+                // Embed point into polar grid channel and cell
+                polar_grid_[channel_index][cell_index].emplace_back(point.x, point.y, point.z, i, labels[i]);
+            }
         }
     }
 
@@ -138,6 +144,129 @@ void RansacSegmenter::embedPointCloudIntoPolarGrid(const pcl::PointCloud<PointT>
             }
         }
     }
+}
+
+void RansacSegmenter::refineClassificationThroughPolarGridTraversal(std::vector<SegmentationLabel> &labels)
+{
+    const PointXYZIL pivot_point{0.0F, 0.0F, -height_offset_, 0, SegmentationLabel::GROUND};
+    std::uint32_t points_reclassified = 0U;
+
+    // Traverse grid in the forward direction
+    std::uint32_t reclassified_points_forward_traversal = 0U;
+    for (auto &channel : polar_grid_)
+    {
+        const auto *last_known_ground_point = &pivot_point;
+
+        // Traverse each cell and refine
+        for (auto &cell : channel)
+        {
+            // Traverse each point within cell
+            for (auto &point : cell)
+            {
+                if (point.label == SegmentationLabel::GROUND)
+                {
+                    last_known_ground_point = &point;
+                }
+                // Check if can be re-classified as ground
+                else
+                {
+                    const float dx = point.x - last_known_ground_point->x;
+                    const float dy = point.y - last_known_ground_point->y;
+                    const float dz = point.z - last_known_ground_point->z;
+                    const float dr = std::sqrt((dx * dx) + (dy * dy));
+                    const float gradient = dz / dr;
+
+                    if ((std::fabs(gradient) < 0.15F) && (dr < 5.0F))
+                    {
+                        point.label = SegmentationLabel::GROUND;
+                        last_known_ground_point = &point;
+                        labels[point.index] = SegmentationLabel::GROUND;
+                        ++reclassified_points_forward_traversal;
+                    }
+                }
+            }
+        }
+    }
+
+    // Traverse grid in the horizontal direction
+    const auto *last_known_ground_point = &pivot_point;
+    std::uint32_t reclassified_points_horizontal_traversal = 0U;
+    for (std::uint32_t cell_index = 0U; cell_index < NUMBER_OF_CELLS; ++cell_index)
+    {
+        for (std::uint32_t channel_index = 0U; channel_index < NUMBER_OF_CHANNELS; ++channel_index)
+        {
+            // For each point
+            for (auto &point : polar_grid_[channel_index][cell_index])
+            {
+                if (point.label == SegmentationLabel::GROUND)
+                {
+                    last_known_ground_point = &point;
+                }
+                // Check if can be re-classified as ground
+                else
+                {
+                    const float dx = point.x - last_known_ground_point->x;
+                    const float dy = point.y - last_known_ground_point->y;
+                    const float dz = point.z - last_known_ground_point->z;
+                    const float dr = std::sqrt((dx * dx) + (dy * dy));
+                    const float gradient = dz / dr;
+
+                    if ((std::fabs(gradient) < 0.10F) && (dr < 1.0F))
+                    {
+                        point.label = SegmentationLabel::GROUND;
+                        last_known_ground_point = &point;
+                        labels[point.index] = SegmentationLabel::GROUND;
+                        ++reclassified_points_horizontal_traversal;
+                    }
+                }
+            }
+        }
+    }
+
+    // Last stage - per cell reclassification
+    std::uint32_t reclassified_points_cell_smoothing = 0U;
+    for (auto &channel : polar_grid_)
+    {
+        for (auto &cell : channel)
+        {
+            // Find mean ground point within current cells
+            float z_mean = 0.0;
+            std::uint32_t number_of_ground_points_within_cell = 0U;
+            for (const auto &point : cell)
+            {
+                if (point.label == SegmentationLabel::GROUND)
+                {
+                    z_mean += point.z;
+                    ++number_of_ground_points_within_cell;
+                }
+            }
+            if (number_of_ground_points_within_cell > 0U)
+            {
+                z_mean /= number_of_ground_points_within_cell;
+
+                // Attempt to smooth out non-ground classifications
+                for (auto &point : cell)
+                {
+                    if (point.label == SegmentationLabel::OBSTACLE)
+                    {
+                        if (std::fabs(point.z - z_mean) < 0.15F)
+                        {
+                            point.label = SegmentationLabel::GROUND;
+                            ++reclassified_points_cell_smoothing;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    points_reclassified = reclassified_points_forward_traversal + reclassified_points_horizontal_traversal +
+                          reclassified_points_cell_smoothing;
+
+    std::cerr << "Reclassified points forward traversal: " << reclassified_points_forward_traversal << std::endl;
+    std::cerr << "Reclassified points horizontal traversal: " << reclassified_points_horizontal_traversal << std::endl;
+    std::cerr << "Reclassified points cell smoothing: " << reclassified_points_cell_smoothing << std::endl;
+    std::cerr << "Reclassified points: " << points_reclassified << std::endl;
 }
 
 template <typename PointT>
@@ -278,6 +407,13 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
     const auto t2 = std::chrono::high_resolution_clock::now();
     std::cerr << "Elapsed time polar grid embedding [ms]: "
               << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << std::endl;
+
+    // Refine classification (reduce number of false positives)
+    const auto t3 = std::chrono::high_resolution_clock::now();
+    refineClassificationThroughPolarGridTraversal(labels);
+    const auto t4 = std::chrono::high_resolution_clock::now();
+    std::cerr << "Elapsed time polar grid classification refinement [ms]: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << std::endl;
 }
 } // namespace lidar_processing_lib::segmentation
 

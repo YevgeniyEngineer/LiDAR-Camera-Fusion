@@ -15,6 +15,8 @@ find_package(PCL 1.7.2 REQUIRED)
 # Source files
 set(SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/segmentation/ransac_segmenter.cpp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/clustering/cartesian_euclidean_clusterer.cpp
 )
 
 # Header files
@@ -23,6 +25,7 @@ set(HEADER_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/lidar_processing_lib/segmentation/ransac_segmenter.hpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/include/lidar_processing_lib/clustering/i_clusterer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/lidar_processing_lib/clustering/cartesian_euclidean_clusterer.hpp
 )
 
 # Create shared library

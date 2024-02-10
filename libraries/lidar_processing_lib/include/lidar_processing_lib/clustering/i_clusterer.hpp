@@ -16,6 +16,8 @@ class IClusterer
 {
   public:
     using UniquePtr = std::unique_ptr<IClusterer>;
+    using ReservedClusteringLabel = data_types_lib::ReservedClusteringLabel;
+    using ClusteringLabel = data_types_lib::ClusteringLabel;
 
     /// @brief Deleted copy constructor.
     IClusterer(const IClusterer &) = delete;

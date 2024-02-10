@@ -2,9 +2,12 @@
 #define LIDAR_PROCESSING_LIB__SEGMENTATION__RANSAC_SEGMENTER_HPP
 
 #include "i_segmenter.hpp"               // ISegmenter
+#include <algorithm>                     // std::sort
 #include <array>                         // std::array
+#include <chrono>                        // std::chrono
 #include <cmath>                         // M_PI
 #include <random>                        // std::random_device, std::mt19937, std::uniform_int_distribution
+#include <utilities_lib/math.hpp>        // constexprRound
 #include <utilities_lib/thread_pool.hpp> // ThreadPool
 #include <vector>                        // std::vector
 
@@ -13,9 +16,29 @@ namespace lidar_processing_lib::segmentation
 class RansacSegmenter : public ISegmenter
 {
   public:
+    // Polar prid parameters
+    // channel: azimuth partition
+    // cell: radial partition
+    static constexpr float CHANNEL_RESOLUTION_DEG = 0.5F;
+    static constexpr float CELL_RESOLUTION_M = 1.5F;
+    static constexpr float MAX_CELL_RADIUS = 300.0F;
+
+    // Constants
+    static constexpr float DEG_TO_RAD = M_PIf32 / 180.0F;
+    static constexpr float RAD_TO_DEG = 180.0F / M_PIf32;
+
+    static constexpr float CHANNEL_RESOLUTION_RAD = CHANNEL_RESOLUTION_DEG * DEG_TO_RAD;
+
+    static constexpr auto NUMBER_OF_CHANNELS =
+        static_cast<std::uint32_t>(utilities_lib::constexprRound(360.0F / CHANNEL_RESOLUTION_DEG));
+
+    static constexpr auto NUMBER_OF_CELLS =
+        static_cast<std::uint32_t>(utilities_lib::constexprRound(MAX_CELL_RADIUS / CELL_RESOLUTION_M));
+
     explicit RansacSegmenter(float height_offset, float orthogonal_distance_threshold = 0.1F,
                              std::uint32_t number_of_iterations = 100U, float max_plane_inclination_deg = 25.0F,
-                             float consideration_radius = 30.0F, float consideration_height = 0.8F);
+                             float consideration_radius = 30.0F, float consideration_height = 0.8F,
+                             float classification_radius = 50.0F);
 
     ~RansacSegmenter();
 
@@ -29,12 +52,93 @@ class RansacSegmenter : public ISegmenter
     float max_plane_inclination_deg_;
     float consideration_radius_;
     float consideration_height_;
+    float classification_radius_;
 
     std::vector<pcl::PointXYZ> processing_points_;
+
+    struct PointXYZIL final
+    {
+        float x;
+        float y;
+        float z;
+        std::uint32_t index;
+        SegmentationLabel label;
+
+        PointXYZIL() = default;
+
+        PointXYZIL(float x, float y, float z, std::uint32_t index, SegmentationLabel label)
+            : x(x), y(y), z(z), index(index), label(label)
+        {
+        }
+    };
+
+    std::array<std::array<std::vector<PointXYZIL>, NUMBER_OF_CELLS>, NUMBER_OF_CHANNELS> polar_grid_;
+
+    template <typename PointT>
+    void embedPointCloudIntoPolarGrid(const pcl::PointCloud<PointT> &cloud,
+                                      const std::vector<SegmentationLabel> &labels);
 
     template <typename PointT>
     void segment(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels);
 };
+
+template <typename PointT>
+void RansacSegmenter::embedPointCloudIntoPolarGrid(const pcl::PointCloud<PointT> &cloud,
+                                                   const std::vector<SegmentationLabel> &labels)
+{
+    // Clear old points
+    for (auto &channel : polar_grid_)
+    {
+        for (auto &cell : channel)
+        {
+            cell.clear();
+        }
+    }
+
+    // Embed points into each channel
+    for (std::uint32_t i = 0U; i < cloud.points.size(); ++i)
+    {
+        const auto &point = cloud.points[i];
+
+        // Calculate distance
+        const float distance = std::sqrt((point.x * point.x) + (point.y * point.y));
+
+        if (distance < MAX_CELL_RADIUS)
+        {
+            // Convert azimuth angle to degrees and shift range to [0, 360) OR [0, 2 * PI]
+            float azimuth_rad = utilities_lib::atan2Approx(point.y, point.x);
+            azimuth_rad -= 2.0 * M_PI * std::floor(azimuth_rad / M_PI);
+
+            // Determine channel index using floor division
+            const std::uint32_t channel_index = static_cast<std::uint32_t>(
+                std::max(azimuth_rad / CHANNEL_RESOLUTION_RAD, std::numeric_limits<float>::epsilon()));
+
+            // Determine bin index
+            const std::uint32_t cell_index = std::min(
+                static_cast<std::uint32_t>(std::max(MAX_CELL_RADIUS / distance, std::numeric_limits<float>::epsilon())),
+                (NUMBER_OF_CELLS - 1U));
+
+            // Embed point into polar grid channel and cell
+            polar_grid_[channel_index][cell_index].emplace_back(point.x, point.y, point.z, i, labels[i]);
+        }
+    }
+
+    // Sort points in increasing radial order, in each channel in each cell
+    for (auto &channel : polar_grid_)
+    {
+        for (auto &cell : channel)
+        {
+            if (!cell.empty())
+            {
+                std::sort(cell.begin(), cell.end(), [](const auto &p1, const auto &p2) noexcept {
+                    const float dr1 = (p1.x * p1.x) + (p1.y * p1.y);
+                    const float dr2 = (p2.x * p2.x) + (p2.y * p2.y);
+                    return dr1 < dr2;
+                });
+            }
+        }
+    }
+}
 
 template <typename PointT>
 void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels)
@@ -148,20 +252,32 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
     }
 
     // Decide which points are GROUND and which points are NON-GROUND
+    const float classification_radius_squared = classification_radius_ * classification_radius_;
     for (std::size_t i = 0U; i < cloud.points.size(); ++i)
     {
-        const float orthogonal_distance =
-            std::fabs((a * cloud.points[i].x) + (b * cloud.points[i].y) + (c * cloud.points[i].z) - d);
+        const auto &point = cloud.points[i];
 
-        if (orthogonal_distance < orthogonal_distance_threshold_)
+        if ((point.x * point.x + point.y * point.y) < classification_radius_squared)
         {
-            labels[i] = SegmentationLabel::GROUND;
-        }
-        else
-        {
-            labels[i] = SegmentationLabel::OBSTACLE;
+            const float orthogonal_distance = std::fabs((a * point.x) + (b * point.y) + (c * point.z) - d);
+
+            if (orthogonal_distance < orthogonal_distance_threshold_)
+            {
+                labels[i] = SegmentationLabel::GROUND;
+            }
+            else
+            {
+                labels[i] = SegmentationLabel::OBSTACLE;
+            }
         }
     }
+
+    // Form polar grid
+    const auto t1 = std::chrono::high_resolution_clock::now();
+    embedPointCloudIntoPolarGrid(cloud, labels);
+    const auto t2 = std::chrono::high_resolution_clock::now();
+    std::cerr << "Elapsed time polar grid embedding [ms]: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << std::endl;
 }
 } // namespace lidar_processing_lib::segmentation
 

@@ -22,6 +22,7 @@ set(HEADER_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities_lib/file_operations.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities_lib/thread_pool.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities_lib/tlsf_allocator.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/utilities_lib/math.hpp
 )
 
 # Create shared library

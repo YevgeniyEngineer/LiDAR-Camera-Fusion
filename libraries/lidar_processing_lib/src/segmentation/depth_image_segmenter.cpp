@@ -2,7 +2,8 @@
 
 namespace lidar_processing_lib::segmentation
 {
-DepthImageSegmenter::DepthImageSegmenter() : range_image_(RANGE_IMAGE_HEIGHT * RANGE_IMAGE_WIDTH)
+DepthImageSegmenter::DepthImageSegmenter(float min_range, float max_range)
+    : min_range_(min_range), max_range_(max_range), depth_image_(DEPTH_IMAGE_HEIGHT * DEPTH_IMAGE_WIDTH)
 {
 }
 

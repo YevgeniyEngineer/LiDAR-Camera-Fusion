@@ -24,8 +24,8 @@ lidar_data_processor_node:
         [2.79, 0.8, 2.79, -0.8, -1.62, -0.8, -1.62, 0.8]
       # segmentation configuration
       segmentation:
-        # algorithm to be used for segmentation
-        algorithm: "ransac"
+        # algorithm to be used for segmentation ("ransac" or "depth_image_segmentation")
+        algorithm: "depth_image_segmentation"
         # parameters used by RANSAC
         ransac:
           orthogonal_distance_threshold: 0.3

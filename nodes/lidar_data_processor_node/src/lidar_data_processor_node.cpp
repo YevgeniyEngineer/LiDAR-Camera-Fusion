@@ -2,6 +2,7 @@
 #include "processing_configuration.hpp"
 
 // Processing
+#include <lidar_processing_lib/segmentation/depth_image_segmenter.hpp>
 #include <lidar_processing_lib/segmentation/ransac_segmenter.hpp>
 
 // ROS2
@@ -223,6 +224,15 @@ LidarDataProcessorNode::LidarDataProcessorNode() : rclcpp::Node{"data_processor_
             processing_configuration_.height_offset,
             processing_configuration_.segmentation.ransac.orthogonal_distance_threshold,
             processing_configuration_.segmentation.ransac.number_of_iterations);
+    }
+    else if (processing_configuration_.segmentation.algorithm == "depth_image_segmentation")
+    {
+        segmenter_ptr_ = lidar_processing_lib::segmentation::ISegmenter::createUnique<
+            lidar_processing_lib::segmentation::DepthImageSegmenter>();
+    }
+    else
+    {
+        throw std::runtime_error("Unknown segmentation algorithm!");
     }
 }
 

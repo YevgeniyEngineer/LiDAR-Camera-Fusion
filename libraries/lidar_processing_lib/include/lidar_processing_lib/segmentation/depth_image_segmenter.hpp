@@ -45,6 +45,11 @@ class DepthImageSegmenter : public ISegmenter
     static constexpr float VERTICAL_FIELD_OF_VIEW_DEG = 26.9F;
     static constexpr float VERTICAL_FIELD_OF_VIEW_RAD = VERTICAL_FIELD_OF_VIEW_DEG * DEG_TO_RAD;
 
+    static constexpr float MIN_ELEVATION_DEG = -24.8;
+    static constexpr float MIN_ELEVATION_RAD = MIN_ELEVATION_DEG * DEG_TO_RAD;
+    static constexpr float MAX_ELEVATION_DEG = MIN_ELEVATION_DEG + VERTICAL_FIELD_OF_VIEW_DEG;
+    static constexpr float MAX_ELEVATION_RAD = MAX_ELEVATION_DEG * DEG_TO_RAD;
+
     static constexpr float HORIZONTAL_RESOLUTION_DEG = 0.1F;
     static constexpr float HORIZONTAL_RESOLUTION_RAD = HORIZONTAL_RESOLUTION_DEG * DEG_TO_RAD;
     static constexpr float HORIZONTAL_FIELD_OF_VIEW_DEG = 360.0F;
@@ -94,8 +99,7 @@ class DepthImageSegmenter : public ISegmenter
 
 template <typename PointT> void DepthImageSegmenter::constructDepthImage(const pcl::PointCloud<PointT> &cloud)
 {
-    static constexpr float RECIPROCAL_HORIZONTAL_FOV = 1.0F / HORIZONTAL_FIELD_OF_VIEW_RAD;
-    static constexpr float RECIPROCAL_VERTICAL_FOV = 1.0F / VERTICAL_FIELD_OF_VIEW_RAD;
+    static constexpr float ELEVATION_MID_RAD = (MIN_ELEVATION_RAD + MAX_ELEVATION_RAD) / 2.0F;
 
     // Ensure the range image is properly sized and reset
     if (depth_image_.size() != (DEPTH_IMAGE_WIDTH * DEPTH_IMAGE_HEIGHT))
@@ -119,23 +123,30 @@ template <typename PointT> void DepthImageSegmenter::constructDepthImage(const p
             continue; // Skip points out of range
         }
 
-        float azimuth_rad = std::atan2(point.y, point.x);
-        if (azimuth_rad < 0)
-        {
-            azimuth_rad += static_cast<float>(2.0 * M_PI); // angle mapped to [0, 2*pi]
-        }
-
-        const float elevation_rad = std::atan2(point.z, std::sqrt(dd_sqr)) + M_PI_2f; // angle mapped to [0, pi]
+        const float azimuth_rad = std::atan2(point.y, point.x);
+        const float elevation_rad = std::atan2(point.z, std::sqrt(dd_sqr));
 
         // Convention: (0, 0) coordinate of the image located at the top left corner
 
-        const auto x = std::min(static_cast<std::uint32_t>((azimuth_rad + HORIZONTAL_FIELD_OF_VIEW_RAD / 2) *
-                                                           RECIPROCAL_HORIZONTAL_FOV * DEPTH_IMAGE_WIDTH),
-                                DEPTH_IMAGE_WIDTH - 1U);
+        // Adjust azimuth to map zero azimuth to the center of the image width
+        const auto x = static_cast<std::int32_t>(((azimuth_rad / M_PIf32) * 0.5F + 0.5F) * DEPTH_IMAGE_WIDTH);
 
-        const auto y = std::min(
-            static_cast<std::uint32_t>((M_PI_2f - elevation_rad) * RECIPROCAL_VERTICAL_FOV * DEPTH_IMAGE_HEIGHT),
-            DEPTH_IMAGE_HEIGHT - 1U);
+        // Ensure x is within the valid range
+        if ((x < 0) || (x > static_cast<std::int32_t>(DEPTH_IMAGE_WIDTH - 1)))
+        {
+            continue;
+        }
+
+        // Adjust elevation to map zero elevation to the center of the image height
+        const auto y = static_cast<std::int32_t>(
+            ((elevation_rad - ELEVATION_MID_RAD) / (MAX_ELEVATION_RAD - MIN_ELEVATION_RAD) + 0.5F) *
+            DEPTH_IMAGE_HEIGHT);
+
+        // Ensure y is within the valid range
+        if ((y < 0) || (y > static_cast<std::int32_t>(DEPTH_IMAGE_HEIGHT - 1)))
+        {
+            continue;
+        }
 
         const auto row_major_index = rowMajorIndex(x, y);
 

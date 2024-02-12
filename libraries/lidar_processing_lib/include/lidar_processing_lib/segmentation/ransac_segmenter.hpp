@@ -37,8 +37,8 @@ class RansacSegmenter : public ISegmenter
 
     explicit RansacSegmenter(float height_offset, float orthogonal_distance_threshold = 0.1F,
                              std::uint32_t number_of_iterations = 100U, float max_plane_inclination_deg = 25.0F,
-                             float consideration_radius = 30.0F, float consideration_height = 0.8F,
-                             float classification_radius = 70.0F);
+                             float consideration_radius = 20.0F, float consideration_height = 0.8F,
+                             float classification_radius = 60.0F);
 
     ~RansacSegmenter();
 
@@ -77,6 +77,9 @@ class RansacSegmenter : public ISegmenter
     template <typename PointT>
     void embedPointCloudIntoPolarGrid(const pcl::PointCloud<PointT> &cloud,
                                       const std::vector<SegmentationLabel> &labels);
+
+    template <typename PointT>
+    void segmentRansac(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels);
 
     template <typename PointT>
     void segment(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels);
@@ -273,17 +276,8 @@ void RansacSegmenter::refineClassificationThroughPolarGridTraversal(std::vector<
 }
 
 template <typename PointT>
-void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels)
+void RansacSegmenter::segmentRansac(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels)
 {
-    // Set all labels to unknown
-    labels.assign(cloud.points.size(), SegmentationLabel::UNKNOWN);
-
-    // If cloud contains less than 3 points
-    if (cloud.points.size() < 3U)
-    {
-        return;
-    }
-
     // Copy points from the cloud to the processing points
     processing_points_.clear();
     const float consideration_radius_squared = consideration_radius_ * consideration_radius_;
@@ -403,20 +397,48 @@ void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<
             }
         }
     }
+}
+
+template <typename PointT>
+void RansacSegmenter::segment(const pcl::PointCloud<PointT> &cloud, std::vector<SegmentationLabel> &labels)
+{
+    // Set all labels to unknown
+    labels.assign(cloud.points.size(), SegmentationLabel::UNKNOWN);
+
+    // If cloud contains less than 3 points
+    if (cloud.points.size() < 3U)
+    {
+        return;
+    }
+
+    const auto t0 = std::chrono::steady_clock::now();
+
+    // Form initial segmentation (consensus)
+    segmentRansac(cloud, labels);
+
+    const auto t1 = std::chrono::steady_clock::now();
 
     // Form polar grid
-    const auto t1 = std::chrono::high_resolution_clock::now();
     embedPointCloudIntoPolarGrid(cloud, labels);
-    const auto t2 = std::chrono::high_resolution_clock::now();
+
+    const auto t2 = std::chrono::steady_clock::now();
+
+    // Refine classification (reduce number of false positives)
+    refineClassificationThroughPolarGridTraversal(labels);
+
+    const auto t3 = std::chrono::steady_clock::now();
+
+    std::cerr << "Elapsed time RANSAC [ms]: " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count()
+              << std::endl;
+
     std::cerr << "Elapsed time polar grid embedding [ms]: "
               << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << std::endl;
 
-    // Refine classification (reduce number of false positives)
-    const auto t3 = std::chrono::high_resolution_clock::now();
-    refineClassificationThroughPolarGridTraversal(labels);
-    const auto t4 = std::chrono::high_resolution_clock::now();
     std::cerr << "Elapsed time polar grid classification refinement [ms]: "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count() << std::endl;
+              << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count() << std::endl;
+
+    std::cerr << "Total segmentation time [ms]: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t0).count() << std::endl;
 }
 } // namespace lidar_processing_lib::segmentation
 

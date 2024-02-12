@@ -38,7 +38,7 @@ class RansacSegmenter : public ISegmenter
     explicit RansacSegmenter(float height_offset, float orthogonal_distance_threshold = 0.1F,
                              std::uint32_t number_of_iterations = 100U, float max_plane_inclination_deg = 25.0F,
                              float consideration_radius = 30.0F, float consideration_height = 0.8F,
-                             float classification_radius = 65.0F);
+                             float classification_radius = 70.0F);
 
     ~RansacSegmenter();
 
@@ -111,17 +111,20 @@ void RansacSegmenter::embedPointCloudIntoPolarGrid(const pcl::PointCloud<PointT>
             {
                 // Convert azimuth angle to degrees and shift range to [0, 360) OR [0, 2 * PI]
                 float azimuth_rad = utilities_lib::atan2Approx(point.y, point.x);
-                azimuth_rad -= 2.0 * M_PI * std::floor(azimuth_rad / M_PI);
+
+                // Adjust to range [0, 2 * pi]
+                if (azimuth_rad < 0)
+                {
+                    azimuth_rad += static_cast<float>(2.0 * M_PI);
+                }
 
                 // Determine channel index using floor division
-                const std::uint32_t channel_index = static_cast<std::uint32_t>(
-                    std::max(azimuth_rad / CHANNEL_RESOLUTION_RAD, std::numeric_limits<float>::epsilon()));
+                const std::uint32_t channel_index = std::min(
+                    static_cast<std::uint32_t>(azimuth_rad / CHANNEL_RESOLUTION_RAD), (NUMBER_OF_CHANNELS - 1U));
 
                 // Determine bin index
                 const std::uint32_t cell_index =
-                    std::min(static_cast<std::uint32_t>(
-                                 std::max(MAX_CELL_RADIUS / distance, std::numeric_limits<float>::epsilon())),
-                             (NUMBER_OF_CELLS - 1U));
+                    std::min(static_cast<std::uint32_t>(distance / CELL_RESOLUTION_M), (NUMBER_OF_CELLS - 1U));
 
                 // Embed point into polar grid channel and cell
                 polar_grid_[channel_index][cell_index].emplace_back(point.x, point.y, point.z, i, labels[i]);
